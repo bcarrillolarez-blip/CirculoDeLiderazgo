@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Consulta de Asistencia - Círculos Connect</title>
-  
+
   <!-- Firebase SDKs (Compat para HTML) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
+
   <script>
     tailwind.config = {
       theme: {
@@ -35,6 +35,7 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
+
 <body class="h-full flex flex-col font-sans text-slate-800 antialiased selection:bg-brand-500 selection:text-white">
 
   <!-- PANTALLA DE ACCESO POR DNI -->
@@ -68,9 +69,9 @@
     </div>
   </div>
 
-  <!-- VISTA PRINCIPAL DEL REPORTE PARA EL USUARIO -->
+  <!-- VISTA PRINCIPAL DEL REPORTE -->
   <div id="reportContainer" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 fade-enter space-y-5">
-    
+
     <!-- ENCABEZADO DEL MIEMBRO -->
     <div class="bg-gradient-to-r from-brand-800 via-brand-700 to-black rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
       <div class="flex items-center space-x-4">
@@ -91,10 +92,10 @@
       </button>
     </div>
 
-    <!-- TARJETAS DE RESUMEN DE LA PERSONA -->
+    <!-- TARJETAS DE RESUMEN -->
     <div id="reportSummaryCards" class="grid grid-cols-2 lg:grid-cols-5 gap-3"></div>
 
-    <!-- TABLA DE REGISTRO GENERAL DE ASISTENCIA -->
+    <!-- REGISTRO GENERAL DE ASISTENCIA -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
       <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50">
         <div class="flex items-center gap-2">
@@ -131,10 +132,13 @@
     window.currentUser = null;
     window.currentDate = new Date();
 
-    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    const monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
 
     // ============================================================
-    // FIREBASE - MISMA BASE DE DATOS QUE USA EL REPORTE PRINCIPAL
+    // FIREBASE - MISMA BASE DE DATOS DEL INDEX PRINCIPAL
     // ============================================================
     const firebaseConfig = {
       apiKey: "AIzaSyCs61hkz48ho1QcVnt4Lc7DFM4wd8yaxdc",
@@ -152,7 +156,6 @@
     let firebaseListenerStarted = false;
     let firebaseFirstLoadPromise = null;
 
-    // Normaliza objetos indexados de Firebase a ArraysJS
     function toArray(data) {
       if (!data) return [];
       if (Array.isArray(data)) return data;
@@ -194,26 +197,49 @@
       }
     }
 
+    // ============================================================
+    // SINCRONIZACIÓN EN TIEMPO REAL
+    // ============================================================
     function startFirebaseSync() {
       if (firebaseListenerStarted) return firebaseFirstLoadPromise;
+
       firebaseListenerStarted = true;
+
       firebaseFirstLoadPromise = new Promise((resolve, reject) => {
         let firstSnapshot = true;
+
         db.ref('circulosDB').on('value', (snapshot) => {
           try {
             const data = snapshot.val() || {};
+
             applyFirebaseData(data);
-            if (window.currentUser) window.renderMonthlyReport();
-            if (firstSnapshot) { firstSnapshot=false; resolve(data); }
-          } catch(error) {
-            console.error('Error procesando datos de Firebase:',error);
-            if(firstSnapshot){firstSnapshot=false;reject(error);}
+
+            if (window.currentUser) {
+              window.renderMonthlyReport();
+            }
+
+            if (firstSnapshot) {
+              firstSnapshot = false;
+              resolve(data);
+            }
+          } catch (error) {
+            console.error('Error procesando datos de Firebase:', error);
+
+            if (firstSnapshot) {
+              firstSnapshot = false;
+              reject(error);
+            }
           }
         }, (error) => {
-          console.error('Error leyendo Firebase:',error);
-          if(firstSnapshot){firstSnapshot=false;reject(error);}
+          console.error('Error leyendo Firebase:', error);
+
+          if (firstSnapshot) {
+            firstSnapshot = false;
+            reject(error);
+          }
         });
       });
+
       return firebaseFirstLoadPromise;
     }
 
@@ -227,9 +253,16 @@
       }
     }
 
+    // ============================================================
+    // LOGIN POR DNI
+    // ============================================================
     window.handleDniLogin = async function(e) {
       if (e) e.preventDefault();
-      const dni = (document.getElementById('loginDni')?.value || '').trim().toLowerCase();
+
+      const dni = (
+        document.getElementById('loginDni')?.value || ''
+      ).trim().toLowerCase();
+
       const errBox = document.getElementById('loginErrorMessage');
 
       const firebaseOk = await syncWithBackend();
@@ -242,13 +275,15 @@
         return;
       }
 
-      const user = (window.circleUsers || []).find(u => 
+      const user = (window.circleUsers || []).find(u =>
         u && String(u.doc || u.dni || '').trim().toLowerCase() === dni
       );
 
       if (user) {
         window.currentUser = user;
+
         if (errBox) errBox.classList.add('hidden');
+
         document.getElementById('authScreen').style.display = 'none';
         document.getElementById('reportContainer').classList.remove('hidden');
 
@@ -268,21 +303,225 @@
 
     window.handleLogout = function() {
       window.currentUser = null;
+
       document.getElementById('reportContainer').classList.add('hidden');
       document.getElementById('authScreen').style.display = 'flex';
+
       const input = document.getElementById('loginDni');
       if (input) input.value = '';
     };
 
+    // ============================================================
+    // CAMBIO DE MES
+    // ============================================================
     window.changeCurrentMonth = function(delta) {
-      const base = window.currentDate instanceof Date && !isNaN(window.currentDate.getTime()) ? window.currentDate : new Date();
+      const base =
+        window.currentDate instanceof Date &&
+        !isNaN(window.currentDate.getTime())
+          ? window.currentDate
+          : new Date();
+
       const currentYear = base.getFullYear();
       const currentMonth = base.getMonth();
-      const absoluteMonth = (currentYear * 12) + currentMonth + Number(delta);
+
+      const absoluteMonth =
+        (currentYear * 12) + currentMonth + Number(delta);
+
       const newYear = Math.floor(absoluteMonth / 12);
       const newMonth = absoluteMonth - (newYear * 12);
-      window.currentDate = new Date(newYear, newMonth, 1, 12, 0, 0, 0);
+
+      window.currentDate =
+        new Date(newYear, newMonth, 1, 12, 0, 0, 0);
     };
+
+    window.reportPrevMonth = function() {
+      window.changeCurrentMonth(-1);
+      window.renderMonthlyReport();
+    };
+
+    window.reportNextMonth = function() {
+      window.changeCurrentMonth(1);
+      window.renderMonthlyReport();
+    };
+
+    window.reportGoToday = function() {
+      window.currentDate = new Date();
+      window.renderMonthlyReport();
+    };
+
+    // HORARIOS OFICIALES DE CÍRCULO DE LIDERAZGO.
+    // Solo estas combinaciones de círculo + día + hora son válidas.
+    window.circleLeadershipSchedule = {
+      "PRESENCIAL - LIMA 1": { day: 3, time: "14:00", endTime: "16:00" },
+      "PRESENCIAL - LIMA 2": { day: 3, time: "16:00", endTime: "18:00" },
+      "PRESENCIAL - LIMA 3": { day: 5, time: "14:00", endTime: "16:00" },
+      "PRESENCIAL - LIMA 4": { day: 5, time: "16:00", endTime: "18:00" },
+      "VIRTUAL 4": { day: 2, time: "16:00", endTime: "18:00" },
+      "VIRTUAL 1": { day: 3, time: "16:00", endTime: "18:00" },
+      "VIRTUAL 2": { day: 3, time: "16:00", endTime: "18:00" },
+      "VIRTUAL 3": { day: 3, time: "16:00", endTime: "18:00" },
+      "VIRTUAL 1-2-3": { day: 3, time: "16:00", endTime: "18:00" }
+    };
+
+    function getLeadershipSchedule(circle) {
+      const key = String(circle || '').trim().toUpperCase();
+      return Object.entries(window.circleLeadershipSchedule || {}).find(([name]) => name.toUpperCase() === key)?.[1] || null;
+    }
+
+    function isOfficialLeadershipMeeting(m) {
+      const schedule = getLeadershipSchedule(m?.circle);
+      if (!schedule || !m?.date) return false;
+      const dateObj = new Date(String(m.date).slice(0, 10) + 'T12:00:00');
+      if (dateObj.getDay() !== schedule.day) return false;
+
+      const type = String(m.type || '').trim().toUpperCase();
+      const title = String(m.title || '').trim().toUpperCase();
+      const time = String(m.time || '').slice(0, 5);
+      const endTime = String(m.endTime || '').slice(0, 5);
+
+      // Acepta tanto los registros nuevos como los antiguos (MES/Sesión N),
+      // pero solo si coinciden EXACTAMENTE con el horario oficial del círculo.
+      const legacyLeadership = type === 'MES' || type === 'CIRCULO DE LIDERAZGO' || /^SESIÓN\s+\d+$/i.test(title) || /^SESION\s+\d+$/i.test(title);
+      if (!legacyLeadership) return false;
+      if (time && time !== schedule.time) return false;
+      if (endTime && endTime !== schedule.endTime) return false;
+      return true;
+    }
+
+    // HORARIOS FIJOS DE LAS SESIONES RECURRENTES.
+    const FIXED_SESSION_SCHEDULES = {
+      HEALTH: { day: 4, time: '19:00', endTime: '20:00', title: 'HEALTH' },
+      MENTORIA: { day: 0, time: '20:00', endTime: '21:00', title: 'MENTORÍA' },
+      MASTERCLASS: { day: 5, time: '19:00', endTime: '20:00', title: 'MASTERCLASS' }
+    };
+
+    function legacySundayAnnouncementIsMentoria(m) {
+      const type=String(m?.type||'').trim().toUpperCase(), title=String(m?.title||'').trim().toUpperCase(), id=String(m?.id||'').toUpperCase();
+      return type==='ANUNCIOS CORPORATIVOS' && (id.startsWith('AUTO-ANUNCIOS') || /^SESIÓN\s+\d+$/i.test(title) || /^SESION\s+\d+$/i.test(title));
+    }
+    function normalizeMeetingCategory(m) {
+      if(legacySundayAnnouncementIsMentoria(m)) return 'MENTORIA';
+      const type=String(m?.type||'').trim().toUpperCase(), title=String(m?.title||'').trim().toUpperCase();
+      if(type==='CIRCULO DE LIDERAZGO'||type==='MES'||title.includes('CIRCULO DE LIDERAZGO')||title==='MES'||/^SESIÓN\s+\d+$/i.test(title)||/^SESION\s+\d+$/i.test(title)) return 'CIRCULO DE LIDERAZGO';
+      if(type==='MENTORIA'||type==='MENTORÍA'||title==='MENTORIA'||title==='MENTORÍA') return 'MENTORIA';
+      if(type==='MASTERCLASS'||title.includes('MASTERCLASS')) return 'MASTERCLASS';
+      if(type==='HEALTH'||title==='HEALTH') return 'HEALTH';
+      if(type==='ANUNCIOS CORPORATIVOS'||title==='ANUNCIOS CORPORATIVOS') return 'ANUNCIOS CORPORATIVOS';
+      return type||'ORDINARIA';
+    }
+
+
+    // Reporte Mensual
+    function reportDateKey(year, monthIndex, day) {
+      return `${year}-${String(monthIndex + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    }
+
+    function reportCategoryForDate(dateStr) {
+      const w=new Date(`${dateStr}T12:00:00`).getDay();
+      if(w===4)return 'HEALTH';
+      if(w===0)return 'MENTORIA';
+      return null;
+    }
+    function reportTypeOfMeeting(m) {
+      const normalized=normalizeMeetingCategory(m);
+      if(['CIRCULO DE LIDERAZGO','HEALTH','MENTORIA','MASTERCLASS','ANUNCIOS CORPORATIVOS'].includes(normalized))return normalized;
+      return reportCategoryForDate(m?.date);
+    }
+
+    function reportIsJustified(rec) {
+      const s = String(rec?.status || '').trim().toUpperCase();
+      return s === 'JUSTIFICADO' || s === 'FALTA JUSTIFICADA';
+    }
+
+    function reportIsAttendance(rec) {
+      const s = String(rec?.status || '').trim().toUpperCase();
+      return s === 'ASISTIÓ' || s === 'ASISTIO' || s === 'CLASE PRESENCIAL';
+    }
+
+    function reportStatusFor(rec, jClass) {
+      if (!rec) return { symbol: '', cls: 'text-slate-300', title: 'Pendiente' };
+      const s = String(rec.status || '').trim().toUpperCase();
+      if (reportIsJustified(rec)) {
+        if (jClass === 'valid') return { symbol: 'J', cls: 'text-emerald-700 bg-emerald-50 font-extrabold', title: 'Justificado válido · cuenta como asistencia' };
+        return { symbol: 'J', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'Justificado excedente · no cuenta como asistencia' };
+      }
+      if (s === 'ASISTIÓ' || s === 'ASISTIO') return { symbol: '✓', cls: 'text-emerald-700 bg-emerald-50 font-extrabold', title: 'Asistió' };
+      if (s === 'CLASE PRESENCIAL') return { symbol: 'P', cls: 'text-sky-700 bg-sky-50 font-extrabold', title: 'Clase Presencial' };
+      return { symbol: 'F', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'No asistió' };
+    }
+
+    function getReportMeetingFor(user,dateStr,category){
+      const meetings=(window.circleMeetings||[]).filter(m=>
+        String(m.date||'').slice(0,10)===dateStr &&
+        m.circle===user.circle &&
+        reportTypeOfMeeting(m)===category &&
+        (category!=='CIRCULO DE LIDERAZGO' || isOfficialLeadershipMeeting(m))
+      );
+      return meetings.length ? meetings[0] : null;
+    }
+
+    function reportSessionKey(s) {
+      return `${s.date}|${s.category}|${String(s.meeting?.id || s.date)}`;
+    }
+
+    function getReportSessionsForMonth(year,monthIndex,user){
+      // SOLO fechas/sesiones que están cargadas en el calendario de ESTE círculo.
+      // Nada de días futuros o sesiones inventadas por el reporte.
+      const order={'CIRCULO DE LIDERAZGO':0,HEALTH:1,MENTORIA:2,MASTERCLASS:3,'ANUNCIOS CORPORATIVOS':4};
+      const sessions=(window.circleMeetings||[])
+        .filter(m=>{
+          const d=String(m.date||'').slice(0,10);
+          return d.startsWith(`${year}-${String(monthIndex+1).padStart(2,'0')}-`) && m.circle===user.circle;
+        })
+        .map(meeting=>({date:String(meeting.date||'').slice(0,10),category:reportTypeOfMeeting(meeting),meeting}))
+        .filter(s=>['CIRCULO DE LIDERAZGO','HEALTH','MENTORIA','MASTERCLASS','ANUNCIOS CORPORATIVOS'].includes(s.category))
+        .filter(s=>s.category!=='CIRCULO DE LIDERAZGO' || isOfficialLeadershipMeeting(s.meeting));
+
+      // Una sesión por ID. Esto permite múltiples ANUNCIOS el mismo día sin mezclarlos.
+      const unique=new Map();
+      sessions.forEach(s=>unique.set(reportSessionKey(s),s));
+      return Array.from(unique.values()).sort((a,b)=>
+        a.date.localeCompare(b.date)||
+        order[a.category]-order[b.category]||
+        String(a.meeting.time||'').localeCompare(String(b.meeting.time||''))||
+        String(a.meeting.id||'').localeCompare(String(b.meeting.id||''))
+      );
+    }
+
+    function getReportJClasses(user,sessions){
+      const result=new Map(),leadershipJs=[],bonoJs=[];
+      sessions.forEach(s=>{const rec=(s.meeting?.attendees||[]).find(a=>a.userId===user.id);if(!rec||!reportIsJustified(rec))return;if(s.category==='CIRCULO DE LIDERAZGO')leadershipJs.push({s,rec});else if(['HEALTH','MENTORIA','MASTERCLASS','ANUNCIOS CORPORATIVOS'].includes(s.category))bonoJs.push({s,rec});});
+      const sorter=(a,b)=>a.s.date.localeCompare(b.s.date)||String(a.s.meeting.time||'').localeCompare(String(b.s.meeting.time||''));leadershipJs.sort(sorter);bonoJs.sort(sorter);
+      leadershipJs.forEach((x,i)=>result.set(reportSessionKey(x.s),i<1?'valid':'extra'));bonoJs.forEach((x,i)=>result.set(reportSessionKey(x.s),i<3?'valid':'extra'));return result;
+    }
+
+    function getReportPersonStats(user, sessions) {
+      const jClasses = getReportJClasses(user, sessions);
+      const today = new Date();
+      today.setHours(23,59,59,999);
+      let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
+      sessions.forEach(s => {
+        const rec = (s.meeting.attendees || []).find(a => a.userId === user.id);
+        const sessionDate = new Date(`${s.date}T23:59:59`);
+        const occurred = sessionDate <= today;
+        if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
+        scheduled++;
+        if (!rec) { absent++; return; }
+        if (reportIsJustified(rec)) {
+          const jc = jClasses.get(reportSessionKey(s)) || 'extra';
+          if (jc === 'valid') { attended++; justifiedValid++; }
+          else { absent++; justifiedExtra++; }
+        } else if (reportIsAttendance(rec)) attended++;
+        else absent++;
+      });
+      const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
+      const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
+      return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
+    }
+
+    function reportBadge(text, cls) {
+      return `<span class="inline-flex items-center justify-center min-w-[26px] px-1.5 py-1 rounded-md ${cls}">${text}</span>`;
+    }
 
     window.reportPrevMonth = function(){
       window.changeCurrentMonth(-1);
@@ -299,263 +538,111 @@
       window.renderMonthlyReport();
     };
 
-    function reportDateKey(year, monthIndex, day) {
-      return `${year}-${String(monthIndex + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    }
-
-    function reportCategoryForDate(dateStr) {
-      const d = new Date(`${dateStr}T12:00:00`);
-      const w = d.getDay();
-      if (w === 3) return 'MES';
-      if (w === 4) return 'HEALTH';
-      if (w === 5) return 'MASTERCLASS';
-      if (w === 0) return 'ANUNCIOS CORPORATIVOS';
-      return null;
-    }
-
-    function reportTypeOfMeeting(m) {
-      const type = String(m?.type || '').trim().toUpperCase();
-      const title = String(m?.title || '').trim().toUpperCase();
-      if (type === 'MASTERCLASS' || title.includes('MASTERCLASS')) return 'MASTERCLASS';
-      if (type === 'MES' || title === 'MES') return 'MES';
-      if (type === 'HEALTH' || title === 'HEALTH') return 'HEALTH';
-      if (type === 'ANUNCIOS CORPORATIVOS' || title === 'ANUNCIOS CORPORATIVOS') return 'ANUNCIOS CORPORATIVOS';
-      return reportCategoryForDate(m?.date);
-    }
-
-    function reportIsJustified(rec) {
-      const s = String(rec?.status || '').trim().toUpperCase();
-      return s === 'JUSTIFICADO' || s === 'FALTA JUSTIFICADA' || s === 'J';
-    }
-
-    function reportIsAttendance(rec) {
-      const s = String(rec?.status || '').trim().toUpperCase();
-      return s === 'ASISTIÓ' || s === 'ASISTIO' || s === 'CLASE PRESENCIAL' || s === '✓' || s === 'P';
-    }
-
-    function reportStatusFor(rec, jClass) {
-      if (!rec) return { symbol: '', cls: 'text-slate-300', title: 'Pendiente' };
-      const s = String(rec.status || '').trim().toUpperCase();
-      if (reportIsJustified(rec)) {
-        if (jClass === 'valid') return { symbol: 'J', cls: 'text-emerald-700 bg-emerald-50 font-extrabold', title: 'Justificado válido · cuenta como asistencia' };
-        return { symbol: 'J', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'Justificado excedente · no cuenta como asistencia' };
-      }
-      if (s === 'ASISTIÓ' || s === 'ASISTIO' || s === '✓') return { symbol: '✓', cls: 'text-emerald-700 bg-emerald-50 font-extrabold', title: 'Asistió' };
-      if (s === 'CLASE PRESENCIAL' || s === 'P') return { symbol: 'P', cls: 'text-sky-700 bg-sky-50 font-extrabold', title: 'Clase Presencial' };
-      return { symbol: 'F', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'No asistió' };
-    }
-
-    function getReportMeetingFor(user, dateStr, category) {
-      const meetings = (window.circleMeetings || []).filter(m =>
-        m && m.date === dateStr && m.circle === user.circle && reportTypeOfMeeting(m) === category
-      );
-      if (meetings.length) return meetings[0];
-
-      const circleKey = user.circle ? user.circle.replace(/\s+/g, '') : '';
-      const isDeleted = (window.deletedMeetingIds || []).some(deletedId => {
-        return deletedId === `${dateStr}-${user.circle}` ||
-               deletedId === `${dateStr}-${circleKey}` ||
-               deletedId.includes(`${dateStr}-${circleKey}`) ||
-               deletedId.includes(`${dateStr}-${user.circle}`);
-      });
-
-      if (isDeleted) return null;
-
-      if (category === 'MASTERCLASS') return null;
-      return { 
-        id: `virtual-${category}-${dateStr}-${user.circle}`, 
-        date: dateStr, 
-        circle: user.circle, 
-        type: category, 
-        title: category, 
-        virtual: true, 
-        attendees: [] 
-      };
-    }
-
-    function getReportSessionsForMonth(year, monthIndex, user) {
-      const days = new Date(year, monthIndex + 1, 0).getDate();
-      const out = [];
-      for (let day = 1; day <= days; day++) {
-        const dateStr = reportDateKey(year, monthIndex, day);
-        const category = reportCategoryForDate(dateStr);
-        if (!category) continue;
-        const meeting = getReportMeetingFor(user, dateStr, category);
-        if (!meeting) continue;
-        out.push({ date: dateStr, category, meeting });
-      }
-      return out.sort((a,b) => {
-        const order = { MES:0, HEALTH:1, MASTERCLASS:2, 'ANUNCIOS CORPORATIVOS':3 };
-        return order[a.category]-order[b.category] || a.date.localeCompare(b.date);
-      });
-    }
-
-    function getReportJClasses(user, sessions) {
-      const result = new Map();
-      const mesJs = [];
-      const sharedJs = [];
-
-      sessions.forEach(s => {
-        const attendees = toArray(s.meeting?.attendees);
-        const rec = attendees.find(a => 
-          a && (String(a.userId) === String(user.id) || 
-          (a.doc && String(a.doc) === String(user.doc || user.dni)))
-        );
-        if (!rec || !reportIsJustified(rec)) return;
-
-        if (s.category === 'MES') {
-          mesJs.push({s, rec});
-        } else if (['HEALTH', 'ANUNCIOS CORPORATIVOS', 'MASTERCLASS'].includes(s.category)) {
-          sharedJs.push({s, rec});
-        }
-      });
-
-      mesJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-      sharedJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-
-      mesJs.forEach((x, i) => {
-        result.set(x.s.date + '|' + x.s.category, i < 1 ? 'valid' : 'extra');
-      });
-
-      sharedJs.forEach((x, i) => {
-        result.set(x.s.date + '|' + x.s.category, i < 3 ? 'valid' : 'extra');
-      });
-
-      return result;
-    }
-
-    function getReportPersonStats(user, sessions) {
-      const jClasses = getReportJClasses(user, sessions);
-      const today = new Date();
-      today.setHours(23,59,59,999);
-      let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
-      sessions.forEach(s => {
-        const attendees = toArray(s.meeting?.attendees);
-        const rec = attendees.find(a => 
-          a && (String(a.userId) === String(user.id) || 
-          (a.doc && String(a.doc) === String(user.doc || user.dni)))
-        );
-        const sessionDate = new Date(`${s.date}T23:59:59`);
-        const occurred = sessionDate <= today;
-        if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
-        scheduled++;
-        if (!rec) { absent++; return; }
-        if (reportIsJustified(rec)) {
-          const jc = jClasses.get(s.date + '|' + s.category) || 'extra';
-          if (jc === 'valid') { attended++; justifiedValid++; }
-          else { absent++; justifiedExtra++; }
-        } else if (reportIsAttendance(rec)) attended++;
-        else absent++;
-      });
-      const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
-      const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
-      return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
-    }
-
-    function reportBadge(text, cls) {
-      return `<span class="inline-flex items-center justify-center min-w-[26px] px-1.5 py-1 rounded-md ${cls}">${text}</span>`;
-    }
-
     window.renderMonthlyReport = function() {
-      const u = window.currentUser;
-      if (!u) return;
-
       const head = document.getElementById('monthlyReportHead');
       const body = document.getElementById('monthlyReportBody');
       const cards = document.getElementById('reportSummaryCards');
       const title = document.getElementById('reportMonthTitle');
+      const badge = document.getElementById('badge-report-month');
       if (!head || !body || !cards) return;
 
       const year = window.currentDate.getFullYear();
       const month = window.currentDate.getMonth();
+      // En /asistencias se muestra el MISMO reporte del Index, pero únicamente para el DNI autenticado.
+      const users = window.currentUser ? [window.currentUser] : [];
       const monthTitle = `${monthNames[month]} ${year}`;
       if (title) title.innerText = `Reporte de Asistencia · ${monthTitle}`;
-
-      const users = [u];
+      if (badge) badge.innerText = monthNames[month].slice(0,3).toUpperCase();
 
       const allSessionsMap = new Map();
-      users.forEach(usr => getReportSessionsForMonth(year, month, usr).forEach(s => {
-        const key = `${s.date}|${s.category}`;
+      users.forEach(u => getReportSessionsForMonth(year, month, u).forEach(s => {
+        const key = reportSessionKey(s);
         allSessionsMap.set(key, s);
       }));
-
       const allSessions = Array.from(allSessionsMap.values()).sort((a,b)=>{
-        const order={MES:0,HEALTH:1,MASTERCLASS:2,'ANUNCIOS CORPORATIVOS':3};
+        const order={'CIRCULO DE LIDERAZGO':0,HEALTH:1,MENTORIA:2,MASTERCLASS:3,'ANUNCIOS CORPORATIVOS':4};
         return order[a.category]-order[b.category] || a.date.localeCompare(b.date);
       });
 
-      const sessions = getReportSessionsForMonth(year, month, u);
-      const stats = getReportPersonStats(u, sessions);
-
+      let totalScheduled=0,totalAttend=0,totalAbsent=0,totalPending=0,totalBonus=0;
+      const userStats = users.map(u => {
+        const sessions = getReportSessionsForMonth(year, month, u);
+        const stats = getReportPersonStats(u, sessions);
+        totalScheduled += stats.scheduled; totalAttend += stats.attended; totalAbsent += stats.absent; totalPending += stats.pending;
+        if (stats.bonus) totalBonus++;
+        return {u,sessions,stats};
+      });
+      const generalPct = totalScheduled ? Math.round(totalAttend/totalScheduled*100) : 0;
       cards.innerHTML = [
-        ['👤','MIEMBRO',1,'text-brand-700','bg-brand-50'],
-        ['📅','SESIONES OCURRIDAS',stats.scheduled,'text-slate-800','bg-slate-50'],
-        ['✅','ASISTENCIAS',stats.attended,'text-emerald-700','bg-emerald-50'],
-        ['❌','FALTAS',stats.absent,'text-rose-700','bg-rose-50'],
-        ['🏆','BONOS',stats.bonus ? 1 : 0,'text-amber-700','bg-amber-50']
-      ].map(c=>`<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3"><div class="w-9 h-9 rounded-lg ${c[4]} flex items-center justify-center font-bold text-sm">${c[0]}</div><div><p class="text-[10px] uppercase font-bold text-slate-400">${c[1]}</p><p class="text-xl font-extrabold ${c[3]}">${c[2]}</p></div></div>`).join('') +
-      `<div class="col-span-2 lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-xs"><p class="text-[10px] uppercase font-bold text-slate-400">Asistencia general</p><p class="text-2xl font-extrabold text-brand-700">${stats.pct}%</p><p class="text-[10px] text-slate-400">Pendientes: ${stats.pending}</p></div>`;
+        ['👥','Miembros',users.length,'text-brand-700','bg-brand-50'],
+        ['📅','Sesiones ocurridas',totalScheduled,'text-slate-800','bg-slate-50'],
+        ['✅','Asistencias',totalAttend,'text-emerald-700','bg-emerald-50'],
+        ['❌','Faltas',totalAbsent,'text-rose-700','bg-rose-50'],
+        ['🏆','Bonos',totalBonus,'text-amber-700','bg-amber-50']
+      ].map(c=>`<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3"><div class="w-9 h-9 rounded-lg ${c[4]} flex items-center justify-center">${c[0]}</div><div><p class="text-[10px] uppercase font-bold text-slate-400">${c[1]}</p><p class="text-xl font-extrabold ${c[3]}">${c[2]}</p></div></div>`).join('') +
+      `<div class="col-span-2 lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-xs"><p class="text-[10px] uppercase font-bold text-slate-400">Asistencia general</p><p class="text-2xl font-extrabold text-brand-700">${generalPct}%</p><p class="text-[10px] text-slate-400">Pendientes: ${totalPending}</p></div>`;
 
-      const byCat = {MES:[],HEALTH:[],MASTERCLASS:[],'ANUNCIOS CORPORATIVOS':[]};
+      const byCat = {'CIRCULO DE LIDERAZGO':[],HEALTH:[],MENTORIA:[],MASTERCLASS:[],'ANUNCIOS CORPORATIVOS':[]};
       allSessions.forEach(s=>byCat[s.category].push(s));
       const catStyle = {
-        MES:'bg-yellow-500 text-yellow-950', HEALTH:'bg-emerald-500 text-emerald-950',
-        MASTERCLASS:'bg-blue-600 text-white', 'ANUNCIOS CORPORATIVOS':'bg-brand-800 text-white'
+        'CIRCULO DE LIDERAZGO':'bg-yellow-500 text-yellow-950', HEALTH:'bg-emerald-500 text-emerald-950', MENTORIA:'bg-purple-500 text-white', MASTERCLASS:'bg-blue-600 text-white', 'ANUNCIOS CORPORATIVOS':'bg-purple-700 text-white'
       };
-      const catLabel = {MES:'MES',HEALTH:'HEALTH',MASTERCLASS:'MASTERCLASS','ANUNCIOS CORPORATIVOS':'ANUNCIOS CORPORATIVOS'};
-      
-      let top = `<tr class="text-[10px] uppercase"><th rowspan="2" class="sticky left-0 z-20 bg-brand-900 text-white px-3 py-2 min-w-[210px] text-left">Usuario</th><th rowspan="2" class="sticky left-[210px] z-20 bg-brand-900 text-white px-2 py-2 min-w-[150px] text-left">Círculo</th>`;
+      const catLabel = {'CIRCULO DE LIDERAZGO':'CÍRCULO DE LIDERAZGO',HEALTH:'HEALTH',MENTORIA:'MENTORÍA',MASTERCLASS:'MASTERCLASS','ANUNCIOS CORPORATIVOS':'ANUNCIOS CORPORATIVOS'};
+      let top = `<tr class="text-[10px] uppercase"><th rowspan="2" class="sticky left-0 z-20 bg-slate-900 text-white px-3 py-2 min-w-[210px] text-left">Usuario</th><th rowspan="2" class="sticky left-[210px] z-20 bg-slate-900 text-white px-2 py-2 min-w-[150px] text-left">Círculo</th>`;
       Object.keys(byCat).forEach(cat=>{ if(byCat[cat].length) top += `<th colspan="${byCat[cat].length}" class="px-2 py-2 border-l border-white/20 ${catStyle[cat]}">${catLabel[cat]}</th>`; });
-      top += `<th colspan="4" rowspan="1" class="px-2 py-2 bg-brand-900 text-white border-l">RESUMEN</th></tr>`;
-      
+      top += `<th colspan="4" rowspan="1" class="px-2 py-2 bg-slate-900 text-white border-l">RESUMEN</th></tr>`;
       let second = `<tr class="bg-slate-100 text-slate-600">`;
       Object.keys(byCat).forEach(cat=>byCat[cat].forEach(s=>{ second += `<th class="px-2 py-2 border-l border-slate-200 min-w-[70px]">${s.date.slice(8,10)}/${s.date.slice(5,7)}</th>`; }));
-      second += `<th class="px-2 py-2 bg-brand-900 text-white border-l min-w-[65px]">ASIST.</th><th class="px-2 py-2 bg-brand-900 text-white min-w-[65px]">FALTAS</th><th class="px-2 py-2 bg-brand-900 text-white min-w-[60px]">%</th><th class="px-2 py-2 bg-brand-900 text-white min-w-[80px]">BONO</th></tr>`;
-      
+      second += `<th class="px-2 py-2 bg-slate-900 text-white border-l min-w-[65px]">ASIST.</th><th class="px-2 py-2 bg-slate-900 text-white min-w-[65px]">FALTAS</th><th class="px-2 py-2 bg-slate-900 text-white min-w-[60px]">%</th><th class="px-2 py-2 bg-slate-900 text-white min-w-[80px]">BONO</th></tr>`;
       head.innerHTML = top + second;
 
+      if (!users.length) {
+        body.innerHTML = `<tr><td colspan="${2+allSessions.length+4}" class="p-10 text-center text-slate-400">No hay miembros registrados en los círculos seleccionados.</td></tr>`;
+        return;
+      }
+
       body.innerHTML = '';
-      const rowSessions = getReportSessionsForMonth(year, month, u);
-      const byKey = new Map(rowSessions.map(s=>[`${s.date}|${s.category}`,s]));
-      let cells = '';
+      userStats.forEach(({u,stats})=>{
+        const rowSessions = getReportSessionsForMonth(year, month, u);
+        const byKey = new Map(rowSessions.map(s=>[reportSessionKey(s),s]));
+        let cells = '';
+        allSessions.forEach(s=>{
+          const own = byKey.get(reportSessionKey(s));
+          let rec = own ? (own.meeting.attendees || []).find(a=>a.userId===u.id) : null;
+          let jc = rec && reportIsJustified(rec) ? (stats.jClasses.get(reportSessionKey(s))||'extra') : null;
+          
+          const sessionDate = new Date(`${s.date}T23:59:59`);
+          const occurred = sessionDate <= new Date();
 
-      allSessions.forEach(s=>{
-        const own = byKey.get(`${s.date}|${s.category}`);
-        const attendees = own ? toArray(own.meeting?.attendees) : [];
-        let rec = own ? attendees.find(a=>
-          a && (String(a.userId) === String(u.id) || 
-          (a.doc && String(a.doc) === String(u.doc || u.dni)))
-        ) : null;
-        let jc = rec && reportIsJustified(rec) ? (stats.jClasses.get(`${s.date}|${s.category}`)||'extra') : null;
-        
-        const sessionDate = new Date(`${s.date}T23:59:59`);
-        const occurred = sessionDate <= new Date();
-
-        if (!own) {
-          cells += `<td class="px-2 py-2 border-l border-slate-100 text-slate-200">—</td>`;
-        } else if (!occurred && (!rec || rec.status === 'No asistió')) {
-          cells += `<td class="px-2 py-2 border-l border-slate-100" title="Pendiente (Fecha futura)">${reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
-        } else if (!rec) {
-          cells += `<td class="px-2 py-2 border-l border-slate-100">${occurred ? reportBadge('F','text-rose-700 bg-rose-50 font-extrabold') : reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
-        } else {
-          const st = reportStatusFor(rec,jc);
-          let titleText = st.title;
-          if (reportIsJustified(rec)) {
-            const bucket = s.category === 'MES' ? 'MES · máximo 1 J' : 'HEALTH + ANUNCIOS + MASTERCLASS · máximo 3 J';
-            const validCount = Array.from(stats.jClasses.entries()).filter(([key, value]) => value === 'valid' && (s.category === 'MES' ? key.endsWith('|MES') : ['HEALTH','MASTERCLASS','ANUNCIOS CORPORATIVOS'].some(c => key.endsWith('|' + c)))).length;
-            titleText += ` · ${bucket} · ${jc === 'valid' ? validCount : 'excedente'}`;
+          if (!own) {
+            cells += `<td class="px-2 py-2 border-l border-slate-100 text-slate-200">—</td>`;
+          } else if (!occurred && (!rec || rec.status === 'No asistió')) {
+            cells += `<td class="px-2 py-2 border-l border-slate-100" title="Pendiente (Fecha futura)">${reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
+          } else if (!rec) {
+            cells += `<td class="px-2 py-2 border-l border-slate-100">${occurred ? reportBadge('F','text-rose-700 bg-rose-50 font-extrabold') : reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
+          } else {
+            const st = reportStatusFor(rec,jc);
+            let title = st.title;
+            if (reportIsJustified(rec)) {
+              const bucket = s.category === 'CIRCULO DE LIDERAZGO' ? 'CÍRCULO DE LIDERAZGO · máximo 1 J' : 'HEALTH + MENTORÍA + MASTERCLASS + ANUNCIOS CORPORATIVOS · máximo 3 J';
+              const validCount = Array.from(stats.jClasses.entries()).filter(([key, value]) => value === 'valid' && key.split('|')[1] === s.category).length;
+              title += ` · ${bucket} · ${jc === 'valid' ? validCount : 'excedente'}`;
+            }
+            cells += `<td class="px-2 py-2 border-l border-slate-100" title="${title}">${reportBadge(st.symbol,st.cls)}</td>`;
           }
-          cells += `<td class="px-2 py-2 border-l border-slate-100" title="${titleText}">${reportBadge(st.symbol,st.cls)}</td>`;
-        }
+        });
+        const bonusHtml = stats.bonus ? `<span class="inline-flex px-2 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 font-extrabold">🏆 GANÓ</span>` : `<span class="text-slate-300">—</span>`;
+        const tr=document.createElement('tr');
+        tr.className='hover:bg-slate-50';
+        tr.innerHTML=`<td class="sticky left-0 z-10 bg-white px-3 py-2 text-left border-r border-slate-200"><div class="font-extrabold text-slate-900">${u.name||'Sin nombre'}</div><div class="text-[10px] text-slate-400 font-mono">DNI: ${u.doc||'S/D'}</div></td><td class="sticky left-[210px] z-10 bg-white px-2 py-2 text-left border-r border-slate-200"><span class="px-2 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">${u.circle||'-'}</span></td>${cells}<td class="px-2 py-2 font-extrabold text-emerald-700">${stats.attended}</td><td class="px-2 py-2 font-extrabold text-rose-700">${stats.absent}</td><td class="px-2 py-2 font-extrabold text-brand-700">${stats.pct}%</td><td class="px-2 py-2">${bonusHtml}</td>`;
+        body.appendChild(tr);
       });
-
-      const bonusHtml = stats.bonus ? `<span class="inline-flex px-2 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 font-extrabold">🏆 GANÓ</span>` : `<span class="text-slate-300">—</span>`;
-      const tr = document.createElement('tr');
-      tr.className = 'hover:bg-slate-50';
-      tr.innerHTML = `<td class="sticky left-0 z-10 bg-white px-3 py-3 text-left border-r border-slate-200"><div class="text-base font-extrabold text-slate-900 leading-tight">${u.name||'Sin nombre'}</div><div class="text-sm text-slate-600 font-mono font-bold mt-0.5">DNI: ${u.doc||u.dni||'S/D'}</div></td><td class="sticky left-[210px] z-10 bg-white px-2 py-2 text-left border-r border-slate-200"><span class="px-2 py-1 rounded bg-brand-50 text-brand-700 border border-brand-200 font-bold">${u.circle||'-'}</span></td>${cells}<td class="px-2 py-2 font-extrabold text-emerald-700">${stats.attended}</td><td class="px-2 py-2 font-extrabold text-rose-700">${stats.absent}</td><td class="px-2 py-2 font-extrabold text-brand-700">${stats.pct}%</td><td class="px-2 py-2">${bonusHtml}</td>`;
-      body.appendChild(tr);
     };
 
+
+    // ============================================================
+    // INICIO
+    // ============================================================
     document.addEventListener("DOMContentLoaded", async function() {
       await syncWithBackend();
     });
