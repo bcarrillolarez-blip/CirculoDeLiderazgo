@@ -1,0 +1,3658 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- MODO QR: ocultar la pantalla de acceso ANTES del primer render.
+       Evita el parpadeo de login antes de mostrar el formulario público. -->
+  <script>
+    (function () {
+      try {
+        if (new URLSearchParams(window.location.search).has('asistencia_qr')) {
+          document.documentElement.classList.add('qr-mode');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    html.qr-mode #authScreen,
+    html.qr-mode #embajadorPortalAuthScreen {
+      display: none !important;
+    }
+  </style>
+  <title>Círculos Connect - soy.embajador</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Fuentes Google (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Librería Generadora de Códigos QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <!-- SheetJS para Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Firebase SDKs (Compat para HTML) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    .fade-enter { animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    #qrcode img { margin: 0 auto; border-radius: 12px; padding: 6px; background: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+  </style>
+
+<style id="corporate-final-theme">
+/* ===== CÍRCULOS CONNECT · ESTILO CORPORATIVO FINAL =====
+   Negro + azul noche + azul vivo + blanco.
+   Los colores propios de MES/HEALTH/ANUNCIOS/MASTERCLASS
+   y los estados de asistencia no se modifican.
+*/
+:root{
+  --cc-black:#050812;
+  --cc-night:#0b1736;
+  --cc-night2:#102657;
+  --cc-blue:#2457c5;
+  --cc-blue2:#5f8ff5;
+}
+
+/* Fondo exterior */
+html,body{background:#050812!important;}
+body{
+  position:relative;
+  isolation:isolate;
+  background:
+    radial-gradient(ellipse 900px 480px at 50% -8%,rgba(95,143,245,.38),transparent 70%),
+    radial-gradient(circle 560px at -4% 38%,rgba(36,87,197,.30),transparent 72%),
+    radial-gradient(circle 620px at 104% 68%,rgba(95,143,245,.20),transparent 72%),
+    linear-gradient(135deg,#050812 0%,#0b1736 45%,#102657 70%,#060a13 100%)!important;
+}
+body:before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    linear-gradient(120deg,transparent 0 35%,rgba(255,255,255,.025) 50%,transparent 65%);
+}
+body:after{
+  content:"";position:fixed;top:0;left:8%;right:8%;height:2px;z-index:100;
+  background:linear-gradient(90deg,transparent,#5f8ff5,#fff,#5f8ff5,transparent);
+  box-shadow:0 0 18px rgba(95,143,245,.35);
+}
+
+/* Cabecera y navegación */
+#mainAppHeader{
+  background:rgba(255,255,255,.985)!important;
+  border-bottom:1px solid rgba(16,38,87,.15)!important;
+  box-shadow:0 8px 30px rgba(0,0,0,.20)!important;
+}
+#mainAppHeader .bg-gradient-to-br{
+  background-image:linear-gradient(145deg,#2d61d1,#102657 52%,#050812)!important;
+  box-shadow:0 7px 20px rgba(20,55,130,.30)!important;
+}
+#mainAppHeader h1{color:#070a12!important;}
+#mainAppHeader h1 .text-brand-600{color:#2457c5!important;}
+
+#mainAppNav{
+  background:rgba(255,255,255,.985)!important;
+  border-bottom:1px solid rgba(16,38,87,.14)!important;
+  box-shadow:0 5px 20px rgba(0,0,0,.12)!important;
+}
+#mainAppNav .tab-btn{color:#263b62!important;transition:all .2s ease!important;}
+#mainAppNav .tab-btn:hover{
+  color:#102657!important;background:#edf3ff!important;transform:translateY(-1px);
+}
+#mainAppNav .tab-btn.bg-brand-50{
+  color:#fff!important;
+  background:linear-gradient(135deg,#2457c5,#102657)!important;
+  border-color:#2457c5!important;
+  box-shadow:0 5px 16px rgba(36,87,197,.28)!important;
+}
+
+/* Superficies blancas */
+#mainAdminContainer .bg-white,
+#memberPortalView .bg-white{
+  background:#fff!important;
+  border-color:#d4deed!important;
+  box-shadow:0 12px 34px rgba(0,0,0,.17)!important;
+}
+#tab-report,#tab-calendar{background:transparent!important;}
+
+/* Acentos generales */
+.text-brand-600,.text-brand-700,.text-brand-800,
+.text-indigo-600,.text-indigo-700,.text-indigo-800{color:#183875!important;}
+.bg-brand-50,.bg-indigo-50{background:#edf3ff!important;}
+.bg-brand-100,.bg-indigo-100{background:#dce8ff!important;}
+.bg-brand-500,.bg-brand-600,.bg-brand-700,
+.bg-indigo-600,.bg-indigo-700,.bg-indigo-800{background-color:#183875!important;}
+.border-brand-200,.border-indigo-200{border-color:#c1d1ea!important;}
+
+button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!important;}
+
+/* Controles */
+#mainAdminContainer input,#mainAdminContainer select,#mainAdminContainer textarea{
+  background:#fff!important;border-color:#c8d4e5!important;
+}
+#mainAdminContainer input:focus,#mainAdminContainer select:focus,#mainAdminContainer textarea:focus{
+  border-color:#3f6fcb!important;
+  box-shadow:0 0 0 3px rgba(36,87,197,.14)!important;
+}
+
+/* Reporte: solo superficies, NO categorías */
+#monthlyReportTable tbody tr:hover td{background:#f1f5fb!important;}
+#monthlyReportTable td,#monthlyReportTable th{border-color:#e0e7f1!important;}
+
+/* Scroll */
+::-webkit-scrollbar-track{background:#081126!important;}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#5f8ff5,#183875)!important;border-radius:999px!important;}
+::-webkit-scrollbar-thumb:hover{background:#7da4ff!important;}
+::selection{background:#2457c5!important;color:#fff!important;}
+</style>
+
+
+<style id="corporate-tab-animations">
+/* Transición suave entre módulos */
+.tab-content.cc-tab-enter{animation:ccTabIn .40s cubic-bezier(.22,.61,.36,1) both;}
+.tab-content.cc-tab-left{animation-name:ccTabLeft;}
+.tab-content.cc-tab-right{animation-name:ccTabRight;}
+@keyframes ccTabRight{
+  from{opacity:0;transform:translateX(22px);filter:blur(2px)}
+  to{opacity:1;transform:translateX(0);filter:blur(0)}
+}
+@keyframes ccTabLeft{
+  from{opacity:0;transform:translateX(-22px);filter:blur(2px)}
+  to{opacity:1;transform:translateX(0);filter:blur(0)}
+}
+#mainAppNav .tab-btn{position:relative;overflow:hidden;}
+#mainAppNav .tab-btn:after{
+  content:"";position:absolute;left:14%;right:14%;bottom:1px;height:2px;
+  border-radius:999px;background:linear-gradient(90deg,#2457c5,#5f8ff5);
+  transform:scaleX(0);opacity:0;transition:transform .28s ease,opacity .28s ease;
+}
+#mainAppNav .tab-btn.bg-brand-50:after{transform:scaleX(1);opacity:1;}
+@media(prefers-reduced-motion:reduce){
+ .tab-content.cc-tab-enter{animation:none!important;}
+ #mainAppNav .tab-btn:after{transition:none!important;}
+}
+</style>
+<script id="corporate-tab-animation-script">
+(function(){
+  const original=window.switchTab;
+  if(typeof original!=="function") return;
+  const order=["tab-calendar","tab-report","tab-users","tab-admins","tab-audit"];
+  window.switchTab=function(id){
+    const target=document.getElementById(id);
+    const current=document.querySelector(".tab-content:not(.hidden)");
+    const a=current?order.indexOf(current.id):-1,b=order.indexOf(id);
+    original(id);
+    document.querySelectorAll(".tab-content").forEach(e=>e.classList.remove("cc-tab-enter","cc-tab-left","cc-tab-right"));
+    if(!target)return;
+    const dir=(a>=0&&b>=0&&b<a)?"cc-tab-left":"cc-tab-right";
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      target.classList.add("cc-tab-enter",dir);
+      setTimeout(()=>target.classList.remove("cc-tab-enter",dir),460);
+    }));
+  };
+})();
+</script>
+
+</head>
+<body class="h-full flex flex-col font-sans text-slate-800 antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- VISTA PÚBLICA PARA MARCACIÓN VÍA QR (CELULAR) -->
+  <div id="publicQrAttendanceScreen" class="fixed inset-0 z-[150] bg-slate-900 hidden items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 fade-enter text-center relative">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-600 to-indigo-800 flex items-center justify-center text-white mx-auto shadow-lg shadow-brand-500/25 mb-4 text-2xl">
+        📱
+      </div>
+
+      <span class="inline-block px-2.5 py-0.5 text-[10px] font-bold bg-brand-50 text-brand-700 rounded-md mb-1">soy.embajador</span>
+      <h2 class="text-xl font-bold text-slate-900 tracking-tight" id="qrPublicMeetTitle">Registro de Asistencia</h2>
+      <p class="text-xs text-brand-600 font-semibold mt-1" id="qrPublicMeetCircle">Círculo</p>
+      <p class="text-xs text-slate-400 mt-0.5" id="qrPublicMeetDate">Fecha y Hora</p>
+
+      <div id="qrPublicStatusAlert" class="mt-4 p-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="qrPublicStatusText">QR Activo para Registro</span>
+      </div>
+
+      <div id="qrPublicCountdownBox" class="mt-2 text-[11px] text-slate-500 font-mono">
+        Tiempo restante: <strong class="text-slate-800 font-bold" id="qrPublicTimerDisplay">03:00</strong>
+      </div>
+
+      <form id="publicQrForm" onsubmit="window.handlePublicAttendanceSubmit(event)" class="mt-5 space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Ingresa tu DNI / N° Documento <span class="text-rose-500">*</span></label>
+          <div class="relative">
+            <input type="text" id="publicDniInput" required maxlength="12" placeholder="Ej: 74839201" class="w-full pl-9 pr-3 py-3 text-base font-mono font-bold tracking-wider border-2 border-slate-300 rounded-xl focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 outline-none transition-all">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-sm">🆔</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Al confirmar, tu estado cambiará de "No asistió" a "Asistió" en tiempo real.</p>
+        </div>
+
+        <button type="submit" id="btnSubmitPublicAttendance" class="w-full py-3 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center space-x-2 cursor-pointer">
+          <span>✅ Confirmar Mi Asistencia</span>
+        </button>
+      </form>
+
+      <div id="publicSuccessBox" class="hidden mt-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center fade-enter">
+        <div class="text-3xl mb-1">🎉</div>
+        <h3 class="text-sm font-bold text-emerald-900" id="publicSuccessMemberName">¡Asistencia Confirmada!</h3>
+        <p class="text-xs text-emerald-700 mt-0.5" id="publicSuccessDetails">Tu asistencia ha quedado registrada exitosamente en el sistema.</p>
+        <div class="mt-3 text-[10px] text-slate-400 font-mono" id="publicSuccessTimestamp">Hora: --:--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANTALLA DE ACCESO ADMINISTRATIVO -->
+  <div id="authScreen" class="fixed inset-0 z-[50] bg-slate-900 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 fade-enter relative overflow-hidden">
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-800 flex items-center justify-center text-white mx-auto shadow-lg shadow-brand-500/25 mb-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <span class="inline-block px-2.5 py-0.5 text-[10px] font-bold bg-brand-50 text-brand-700 rounded-md mb-2">soy.embajador</span>
+        <h2 class="text-xl font-bold text-slate-900 tracking-tight">Círculos <span class="text-brand-600">Connect</span></h2>
+        <p class="text-xs text-slate-500 mt-0.5">Control de Asistencia y Gestión de Círculos</p>
+      </div>
+
+      <div id="loginErrorMessage" class="hidden mb-3 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium"></div>
+
+      <form id="loginForm" onsubmit="window.handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Correo Electrónico o DNI</label>
+          <input type="text" id="loginEmail" required placeholder="admin@empresa.com o DNI" class="w-full px-3 py-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50/50 focus:bg-white transition-all">
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-xs font-semibold text-slate-700">Contraseña o PIN</label>
+            <span class="text-[10px] text-brand-600 font-medium">PIN Inicial: 2026</span>
+          </div>
+          <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full px-3 py-2.5 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50/50 focus:bg-white transition-all">
+        </div>
+
+        <button type="submit" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md shadow-brand-500/20 transition-all flex items-center justify-center space-x-2 cursor-pointer">
+          <span>Acceder al Panel</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- PORTAL EMBAJADOR -->
+  <div id="embajadorPortalAuthScreen" class="fixed inset-0 z-[50] bg-slate-900 flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-8 fade-enter relative overflow-hidden">
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-800 flex items-center justify-center text-white mx-auto shadow-lg shadow-indigo-500/25 mb-3 text-xl">
+          ⭐
+        </div>
+        <span class="inline-block px-2.5 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 rounded-md mb-2">soy.embajador / portal</span>
+        <h2 class="text-xl font-bold text-slate-900 tracking-tight">Portal del <span class="text-indigo-600">Embajador</span></h2>
+        <p class="text-xs text-slate-500 mt-0.5">Ingresa con tu DNI para consultar tu historial de asistencias</p>
+      </div>
+
+      <div id="embajadorLoginErrorMessage" class="hidden mb-3 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium"></div>
+
+      <form id="embajadorLoginForm" onsubmit="window.handleEmbajadorMemberLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Ingresa tu DNI / N° de Documento</label>
+          <div class="relative">
+            <input type="text" id="embajadorPortalDni" required maxlength="12" placeholder="Ej: 74839201" class="w-full pl-9 pr-3 py-3 text-sm font-mono font-bold tracking-wider border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50/50 focus:bg-white transition-all">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-sm">🆔</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Accede instantáneamente a tus asistencias registradas en tu círculo.</p>
+        </div>
+
+        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 transition-all flex items-center justify-center space-x-2 cursor-pointer">
+          <span>Ingresar a Mi Portal de Embajador</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ENCABEZADO PRINCIPAL -->
+  <header id="mainAppHeader" class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-800 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h1 class="font-bold text-slate-900 text-lg leading-tight tracking-tight">Círculos <span class="text-brand-600">Connect</span></h1>
+              <span class="px-2 py-0.5 text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">soy.embajador</span>
+            </div>
+            <p class="text-xs text-slate-500">Gestión de Círculos y Control de Asistencia en Tiempo Real</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-2.5 border-l border-slate-200 pl-3">
+            <div class="flex flex-col text-right">
+              <span class="text-xs font-bold text-slate-800" id="currentUserNameLabel">Administrador</span>
+              <span class="text-[10px] text-brand-600 font-semibold" id="currentUserRoleLabel">Administrador</span>
+            </div>
+            <div id="currentUserAvatar" class="w-9 h-9 rounded-full bg-brand-100 border border-brand-300 flex items-center justify-center text-brand-700 font-bold text-sm">
+              AD
+            </div>
+            <button onclick="window.handleLogout()" title="Cerrar Sesión" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-1 cursor-pointer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="mainAppNav" class="bg-white border-b border-slate-200 hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-2 sm:space-x-6 overflow-x-auto py-2.5 text-sm font-medium">
+        <button onclick="window.switchTab('tab-calendar')" id="btn-tab-calendar" class="tab-btn px-3 py-2 rounded-lg font-medium text-brand-600 bg-brand-50 border border-brand-200/60 flex items-center space-x-2 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>Calendario de Reuniones</span>
+        </button>
+
+        <button onclick="window.switchTab('tab-report')" id="btn-tab-report" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19h16M6 17V7m4 10V4m4 13v-7m4 7V9"/></svg>
+          <span>Reporte Mensual</span>
+          <span class="ml-1 px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800 rounded-full font-bold" id="badge-report-month">—</span>
+        </button>
+
+        <button onclick="window.switchTab('tab-users')" id="btn-tab-users" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>Directorio de Miembros</span>
+          <span class="ml-1 px-2 py-0.5 text-xs bg-slate-200 text-slate-700 rounded-full font-bold" id="badge-users-count">0</span>
+        </button>
+
+        <button onclick="window.switchTab('tab-admins')" id="btn-tab-admins" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <span>Usuarios Administrativos</span>
+          <span class="ml-1 px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded-full font-bold" id="badge-admins-count">1</span>
+        </button>
+
+        <button onclick="window.switchTab('tab-audit')" id="btn-tab-audit" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+          <span>Bitácora de Auditoría</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- PORTAL MIEMBRO -->
+  <div id="memberPortalView" class="hidden flex-1 flex-col max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 fade-enter space-y-5">
+    <div class="bg-gradient-to-r from-brand-700 via-indigo-700 to-slate-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center space-x-4">
+        <div class="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl font-bold backdrop-blur-xs">
+          👤
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h2 class="text-xl font-bold" id="memberPortalNameDisplay">Nombre del Miembro</h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white" id="memberPortalRankDisplay">Rango</span>
+          </div>
+          <p class="text-xs text-indigo-200 mt-1">DNI: <strong class="text-white font-mono" id="memberPortalDniDisplay">00000000</strong> · Círculo Asignado: <span class="bg-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded font-bold" id="memberPortalCircleDisplay">-</span></p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="window.renderMemberPortalMeetings();" class="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer">
+          <span>🔄 Actualizar Estado</span>
+        </button>
+        <button onclick="window.handleEmbajadorLogout()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div><p class="text-xs font-semibold text-slate-500 uppercase">Reuniones Asignadas</p><p class="text-2xl font-bold text-slate-900 mt-1" id="mStatAssigned">0</p></div>
+        <div class="w-10 h-10 rounded-lg bg-indigo-50 text-brand-600 flex items-center justify-center font-bold">📅</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div><p class="text-xs font-semibold text-slate-500 uppercase">Asistencias Confirmadas</p><p class="text-2xl font-bold text-emerald-600 mt-1" id="mStatAttended">0</p></div>
+        <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">✅</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div><p class="text-xs font-semibold text-slate-500 uppercase">Faltas Registradas</p><p class="text-2xl font-bold text-rose-600 mt-1" id="mStatAbsent">0</p></div>
+        <div class="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold">❌</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div><p class="text-xs font-semibold text-slate-500 uppercase">Justificadas</p><p class="text-2xl font-bold text-amber-600 mt-1" id="mStatJustified">0</p></div>
+        <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">📝</div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Historial de Asistencias de Mi Círculo</h3>
+          <p class="text-xs text-slate-500">Consulta si tu asistencia figura como confirmada en cada sesión.</p>
+        </div>
+        <span class="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg" id="memberPortalCircleBadge">Círculo</span>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-200">
+        <table class="w-full text-left text-sm text-slate-600">
+          <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3.5">Fecha y Hora</th>
+              <th class="px-5 py-3.5">Reunión / Tema</th>
+              <th class="px-4 py-3.5">Moderador / Lugar</th>
+              <th class="px-4 py-3.5 text-center">Mi Estado</th>
+              <th class="px-4 py-3.5">Observación / QR</th>
+            </tr>
+          </thead>
+          <tbody id="memberPortalMeetingsTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENEDOR PRINCIPAL ADMINISTRATIVO -->
+  <main id="mainAdminContainer" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 hidden">
+
+    <!-- PESTAÑA 1: CALENDARIO -->
+    <div id="tab-calendar" class="tab-content fade-enter space-y-5">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <button onclick="window.prevMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">◀</button>
+          <h2 class="text-lg font-bold text-slate-900 min-w-[200px] text-center" id="calendarMonthYear">Mes Año</h2>
+          <button onclick="window.nextMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">▶</button>
+          <button onclick="window.goToToday()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer">Hoy</button>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <select id="circleFilter"
+            onchange="window.renderCalendar()"
+            class="px-3 py-2 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
+            <option value="">Todos mis Círculos</option>
+          </select>
+
+          <button
+            id="btnCalendarNewMeeting"
+            onclick="window.openNewMeetingModal()"
+            class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold shadow-xs flex items-center space-x-1.5 cursor-pointer">
+            <span>+ Programar Reunión</span>
+          </button>
+
+          <button
+            onclick="window.createMonthlyMasterclasses()"
+            class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer">
+            🔵 MASTERCLASS DEL MES
+          </button>
+
+          <button
+            onclick="window.deleteMonthlyMasterclasses()"
+            class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold shadow-sm cursor-pointer">
+            🗑️ Eliminar Masterclass
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="calendar-grid bg-slate-100 border-b border-slate-200 text-center text-xs font-bold text-slate-600 uppercase py-2.5">
+          <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+        </div>
+        <div id="calendarDaysGrid" class="calendar-grid bg-slate-200 gap-px"></div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 2: REPORTE MENSUAL DE ASISTENCIA -->
+    <div id="tab-report" class="tab-content hidden fade-enter space-y-5">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+          <button onclick="window.reportPrevMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">◀</button>
+          <div class="min-w-[210px] text-center">
+            <h2 class="text-lg font-bold text-slate-900" id="reportMonthTitle">Reporte Mensual</h2>
+            <p class="text-[11px] text-slate-500">Se recalcula automáticamente con cada cambio de asistencia.</p>
+          </div>
+          <button onclick="window.reportNextMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">▶</button>
+          <button onclick="window.reportGoToday()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer">Hoy</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input id="reportMemberSearch" type="search" oninput="window.renderMonthlyReport()" placeholder="🔎 Buscar miembro..." class="w-full sm:w-56 px-3 py-2 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
+          <select id="reportCircleFilter" onchange="window.renderMonthlyReport()" class="px-3 py-2 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
+            <option value="">Seleccione un círculo</option>
+          </select>
+          <button onclick="window.renderMonthlyReport()" class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold cursor-pointer">↻ Recalcular</button>
+        </div>
+      </div>
+
+      <div id="reportSummaryCards" class="grid grid-cols-2 lg:grid-cols-5 gap-3"></div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Registro General de Asistencia</h3>
+            <p class="text-[11px] text-slate-500">J verde = justificación válida. J roja = excedente y no cuenta como asistencia.</p>
+          </div>
+          <div class="flex flex-wrap gap-2 text-[10px] font-bold">
+            <span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">✓ Asistió</span>
+            <span class="px-2 py-1 rounded bg-sky-50 text-sky-700 border border-sky-200">P Presencial</span>
+            <span class="px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200">J Válida</span>
+            <span class="px-2 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">J Excedente / F</span>
+          </div>
+        </div>
+        <div class="overflow-auto max-h-[calc(100vh-360px)]">
+          <table class="min-w-max w-full text-center text-[11px] border-collapse" id="monthlyReportTable">
+            <thead id="monthlyReportHead"></thead>
+            <tbody id="monthlyReportBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 3: DIRECTORIO DE MIEMBROS -->
+    <div id="tab-users" class="tab-content hidden fade-enter space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
+        <div class="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1 max-w-xl">
+          <input type="text" id="userSearchInput" oninput="window.renderUserDirectory()" placeholder="Buscar por DNI, nombre, rango, círculo..." class="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50/50">
+          
+          <div class="flex items-center gap-1.5 w-full sm:w-auto">
+            <select id="userCircleFilter" onchange="window.renderUserDirectory()" class="w-full sm:w-56 px-3 py-2 text-xs sm:text-sm font-medium border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
+              <option value="">Todos mis Círculos</option>
+            </select>
+            <button onclick="window.promptDeleteCircle()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1 shrink-0" title="Eliminar el círculo seleccionado en el filtro">
+              🗑️ <span class="hidden sm:inline">Eliminar Círculo</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          <button id="btnExcelTemplate" onclick="window.downloadExcelTemplate()" class="px-3 py-2 border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold cursor-pointer">
+            📥 Plantilla Excel
+          </button>
+          <button id="btnExcelImport" onclick="window.openExcelImportModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold cursor-pointer">
+            📊 Subir con Excel
+          </button>
+          <button id="btnNewMember" onclick="window.openNewUserModal()" class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold cursor-pointer">
+            + Nuevo Miembro
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
+              <tr>
+                <th class="px-4 py-3.5 text-emerald-800 font-bold">DNI / Documento</th>
+                <th class="px-5 py-3.5">Nombres y Apellidos</th>
+                <th class="px-4 py-3.5">Círculo Asignado</th>
+                <th class="px-4 py-3.5">Rango</th>
+                <th class="px-4 py-3.5">Contacto</th>
+                <th class="px-4 py-3.5">Asistencia (Reuniones)</th>
+                <th class="px-4 py-3.5 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="userDirectoryTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 4: USUARIOS ADMINISTRATIVOS -->
+    <div id="tab-admins" class="tab-content hidden fade-enter space-y-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Usuarios Administrativos y Roles de Acceso</h2>
+          <p class="text-xs text-slate-500">Gestión de Administradores, Sub Administradores y Moderadores.</p>
+        </div>
+        <button onclick="window.openNewAdminModal()" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold cursor-pointer">
+          + Nuevo Usuario Administrativo
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
+              <tr>
+                <th class="px-5 py-3.5">Administrador</th>
+                <th class="px-4 py-3.5">Rol Administrativo</th>
+                <th class="px-4 py-3.5">Círculo(s) a Cargo</th>
+                <th class="px-4 py-3.5">Correo / Acceso</th>
+                <th class="px-4 py-3.5">Clave / PIN</th>
+                <th class="px-4 py-3.5 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="adminDirectoryTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 5: BITÁCORA DE AUDITORÍA -->
+    <div id="tab-audit" class="tab-content hidden fade-enter space-y-4">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-xs">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Bitácora de Auditoría</h2>
+            <p class="text-xs text-slate-500">Historial inmutable de modificaciones y justificaciones de asistencia.</p>
+          </div>
+          <button onclick="window.exportAuditToCSV()" class="px-3 py-1.5 text-xs font-semibold border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg cursor-pointer">
+            📥 Descargar CSV
+          </button>
+        </div>
+        <div class="flow-root">
+          <ul role="list" id="auditLogList" class="-mb-8"></ul>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODALES DEL SISTEMA -->
+
+  <!-- MODAL: QR ASISTENCIA -->
+  <div id="qrMeetingModal" class="fixed inset-0 z-[90] bg-slate-900/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 sm:p-8 fade-enter text-center">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+        <div class="text-left">
+          <h3 class="text-base font-bold text-slate-900">📱 QR de Asistencia en Vivo</h3>
+          <p class="text-[11px] text-slate-500" id="qrModalMeetingTitle">Reunión</p>
+        </div>
+        <button onclick="window.closeQrModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer text-lg">✕</button>
+      </div>
+
+      <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-left mb-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-700">Configuración de Tiempo:</span>
+          <button type="button" onclick="window.setQrQuickTimer(3)" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-[11px] font-bold shadow-xs cursor-pointer">
+            ⚡ Reiniciar 3 Minutos Ahora
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora Activación</label>
+            <input type="time" id="qrInputStartTime" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono font-bold">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora Finalización</label>
+            <input type="time" id="qrInputEndTime" class="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono font-bold">
+          </div>
+        </div>
+
+        <button type="button" onclick="window.applyCustomQrSchedule()" class="w-full py-1.5 border border-slate-300 hover:bg-white text-slate-700 rounded-lg text-xs font-semibold cursor-pointer">
+          Aplicar Rango de Horas
+        </button>
+      </div>
+
+      <div class="bg-indigo-50/50 p-5 rounded-2xl border-2 border-dashed border-indigo-200 flex flex-col items-center justify-center mb-4">
+        <div id="qrcode" class="my-1"></div>
+        <div class="mt-3 flex items-center justify-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+          <span class="text-xs font-bold text-slate-800" id="qrLiveTimerDisplay">Esperando activación...</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">Los miembros que escaneen e ingresen su DNI cambiarán de "No asistió" a "Asistió".</p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <input type="text" id="qrLinkCopyInput" readonly class="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 text-slate-500 select-all font-mono truncate">
+        <button onclick="window.copyQrLinkToClipboard()" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer">
+          Copiar Enlace
+        </button>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="window.closeQrModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold text-xs hover:bg-slate-50 cursor-pointer">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: AÑADIR CÍRCULO -->
+  <div id="addCircleModal" class="fixed inset-0 z-[80] bg-slate-900/70 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 fade-enter">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+        <h3 class="text-base font-bold text-slate-900">🏷️ Añadir Nuevo Círculo</h3>
+        <button onclick="window.closeAddCircleModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <form id="addCircleForm" onsubmit="window.handleCreateCircle(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="targetCircleSelectId">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nombre del Círculo <span class="text-rose-500">*</span></label>
+          <input type="text" id="newCircleNameInput" required placeholder="Ej: PRESENCIAL -- TRUJILLO, VIRTUAL 5" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none uppercase font-semibold text-slate-800">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="window.closeAddCircleModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold cursor-pointer">Guardar Círculo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ACTA DE REUNIÓN Y ASISTENCIA -->
+  <div id="meetingModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full p-6 fade-enter max-h-[92vh] flex flex-col">
+      <div class="flex justify-between items-start border-b border-slate-100 pb-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span id="modalMeetingBadge" class="px-2.5 py-0.5 text-xs font-bold rounded-md bg-indigo-50 text-brand-700 border border-brand-200">Círculo</span>
+            <span id="modalMeetingDate" class="text-xs text-slate-500 font-medium">Fecha</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 mt-1" id="modalMeetingTitle">Reunión del Círculo</h3>
+          <p class="text-xs text-slate-500" id="modalMeetingLocation">Ubicación</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="window.renderOpenMeetingAttendeesTable(); window.showToast('Actualizado', 'Lista de asistencia actualizada', 'success');" class="px-2.5 py-1.5 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer" title="Actualizar Listado">
+            <span>🔄 Actualizar</span>
+          </button>
+          
+          <button onclick="window.promptDeleteMeeting()" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer" title="Eliminar esta sesión">
+            <span>🗑️ Eliminar Sesión</span>
+          </button>
+
+          <button onclick="window.closeMeetingModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer">✕</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-4 gap-2 my-4 bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+        <div>
+          <span class="text-[11px] text-slate-500 uppercase font-semibold block">Inscritos</span>
+          <span class="text-base font-bold text-slate-800" id="modalStatsTotal">0</span>
+        </div>
+        <div>
+          <span class="text-[11px] text-emerald-600 uppercase font-semibold block">Asistieron</span>
+          <span class="text-base font-bold text-emerald-600" id="modalStatsPresent">0</span>
+        </div>
+        <div>
+          <span class="text-[11px] text-rose-600 uppercase font-semibold block">No Asistieron</span>
+          <span class="text-base font-bold text-rose-600" id="modalStatsAbsent">0</span>
+        </div>
+        <div>
+          <span class="text-[11px] text-amber-600 uppercase font-semibold block">Justificados</span>
+          <span class="text-base font-bold text-amber-600" id="modalStatsJustified">0</span>
+        </div>
+      </div>
+
+      <div id="qrMeetingActionBar" class="mb-3 p-3 rounded-xl border transition-all"></div>
+
+      <div class="flex-1 overflow-y-auto pr-1">
+        <table class="w-full text-left text-xs text-slate-600 border border-slate-200 rounded-xl">
+          <thead class="bg-slate-100 font-semibold text-slate-700 border-b border-slate-200">
+            <tr>
+              <th class="p-3">Miembro</th>
+              <th class="p-3">Estado de Asistencia</th>
+              <th class="p-3">Observación / Sustento</th>
+              <th class="p-3 text-right">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="modalAttendeesTableBody" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="window.closeMeetingModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer">Cerrar Acta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PIN AUTORIZACIÓN MANUAL -->
+  <div id="adminPinModal" class="fixed inset-0 z-[80] bg-slate-900/70 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 fade-enter">
+      <div class="text-center mb-4">
+        <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-2 font-bold">🔑</div>
+        <h3 class="text-base font-bold text-slate-900">Control Manual de Asistencia</h3>
+        <p class="text-xs text-slate-500">Ingresa tu PIN de autorización para actualizar la asistencia.</p>
+      </div>
+
+      <form id="adminAuthForm" onsubmit="window.executeAttendanceChange(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Estado de Asistencia:</label>
+          <select id="newAttendanceStatus" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white font-medium">
+            <option value="No asistió">❌ No asistió</option>
+            <option value="Asistió">✅ Asistió</option>
+            <option value="Clase Presencial">🏫 Clase Presencial</option>
+            <option value="Justificado">📝 Justificado</option>
+          </select>
+        </div>
+
+        <div id="justificationNoteContainer">
+          <label class="block font-semibold text-slate-700 mb-1">Motivo / Sustento:</label>
+          <input type="text" id="attendanceJustificationNote" placeholder="Ej. Permiso laboral, descanso médico..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">PIN de Seguridad <span class="text-rose-500">*</span>:</label>
+          <input type="password" id="adminSecurityPinInput" required placeholder="PIN" class="w-full px-3 py-2 border border-amber-300 rounded-lg outline-none font-mono tracking-widest bg-amber-50/40">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="window.closeAdminPinModal()" class="px-4 py-2 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg font-semibold cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold cursor-pointer">Validar y Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: PROGRAMAR REUNIÓN -->
+  <div id="newMeetingModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 fade-enter">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+        <h3 class="text-base font-bold text-slate-900">Programar Nueva Reunión</h3>
+        <button onclick="window.closeNewMeetingModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <form id="newMeetingForm" onsubmit="window.handleCreateMeeting(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Título de la Reunión <span class="text-rose-500">*</span></label>
+          <input type="text" id="newMeetTitle" required placeholder="Ej. Sesión Ordinaria" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-700">Círculo Convocado <span class="text-rose-500">*</span></label>
+              <button type="button" id="btnAddNewCircleMeeting" onclick="window.openAddCircleModal('newMeetCircle')" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 cursor-pointer">➕ Añadir</button>
+            </div>
+            <select id="newMeetCircle" required onchange="window.handleCircleSelectChange(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white"></select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Moderador / Líder</label>
+            <input type="text" id="newMeetHost" required placeholder="Moderador" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Fecha <span class="text-rose-500">*</span></label>
+            <input type="date" id="newMeetDate" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Hora</label>
+            <input type="time" id="newMeetTime" value="09:00" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Ubicación o Enlace Virtual</label>
+          <input type="text" id="newMeetLocation" placeholder="Ej. Sala Magna / meet.google.com/..." class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="window.closeNewMeetingModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold cursor-pointer">Programar Reunión</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR MIEMBRO -->
+  <div id="newUserModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 fade-enter">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+        <h3 class="text-base font-bold text-slate-900">Registrar Nuevo Miembro</h3>
+        <button onclick="window.closeNewUserModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <form id="newUserForm" onsubmit="window.handleRegisterUser(event)" class="space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">DNI / Documento <span class="text-rose-500">*</span></label>
+            <input type="text" id="newUserDoc" required maxlength="12" placeholder="74839201" class="w-full px-3 py-2 font-mono font-bold border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Nombres y Apellidos <span class="text-rose-500">*</span></label>
+            <input type="text" id="newUserName" required placeholder="Juan Pérez" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-700">Círculo Asignado <span class="text-rose-500">*</span></label>
+              <button type="button" onclick="window.openAddCircleModal('newUserCircle')" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 cursor-pointer">➕ Añadir</button>
+            </div>
+            <select id="newUserCircle" required onchange="window.handleCircleSelectChange(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white font-medium"></select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Rango</label>
+            <input type="text" id="newUserJob" placeholder="Ej. 500K / 250K / Rango 1" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Correo Electrónico <span class="text-rose-500">*</span></label>
+            <input type="email" id="newUserEmail" required placeholder="correo@empresa.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Teléfono / Celular</label>
+            <input type="tel" id="newUserPhone" placeholder="+51 987 654 321" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="window.closeNewUserModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold cursor-pointer">Guardar Miembro</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: EDITAR MIEMBRO -->
+  <div id="editUserModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 fade-enter">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+        <h3 class="text-base font-bold text-slate-900">✏️ Editar Datos del Miembro</h3>
+        <button onclick="window.closeEditUserModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <form id="editUserForm" onsubmit="window.handleUpdateUser(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="editUserId">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">DNI / Documento <span class="text-rose-500">*</span></label>
+            <input type="text" id="editUserDoc" required maxlength="12" class="w-full px-3 py-2 font-mono font-bold border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Nombres y Apellidos <span class="text-rose-500">*</span></label>
+            <input type="text" id="editUserName" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-700">Círculo Asignado <span class="text-rose-500">*</span></label>
+              <button type="button" onclick="window.openAddCircleModal('editUserCircle')" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 cursor-pointer">➕ Añadir</button>
+            </div>
+            <select id="editUserCircle" required onchange="window.handleCircleSelectChange(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white font-medium"></select>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Rango</label>
+            <input type="text" id="editUserJob" placeholder="Ej. 500K / 250K / Rango 1" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Correo Electrónico <span class="text-rose-500">*</span></label>
+            <input type="email" id="editUserEmail" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Teléfono / Celular</label>
+            <input type="tel" id="editUserPhone" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="window.closeEditUserModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold cursor-pointer">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR ADMINISTRADOR -->
+  <div id="newAdminModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 fade-enter">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+        <h3 class="text-base font-bold text-slate-900">🛡️ Crear / Gestionar Usuario Administrativo</h3>
+        <button onclick="window.closeNewAdminModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <form id="newAdminForm" onsubmit="window.handleRegisterAdmin(event)" class="space-y-4 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">DNI / Documento <span class="text-rose-500">*</span></label>
+            <input type="text" id="newAdminDoc" required placeholder="10293847" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-mono font-bold">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Nombre Completo <span class="text-rose-500">*</span></label>
+            <input type="text" id="newAdminName" required placeholder="Carlos Mendoza" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Rol Administrativo <span class="text-rose-500">*</span></label>
+          <select id="newAdminRole" required onchange="window.handleAdminRoleChange(this.value)" class="w-full px-3 py-2 border border-purple-300 bg-purple-50/40 text-purple-900 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-semibold">
+            <option value="Administrador">👑 Administrador (Acceso Global Total)</option>
+            <option value="Sub Administrador">🎖️ Sub Administrador (Gestión de Círculos y Justificaciones)</option>
+            <option value="Moderador">🎯 Moderador (Solo Lectura)</option>
+          </select>
+        </div>
+
+        <div id="adminCirclesSelectionWrapper">
+          <div class="flex items-center justify-between mb-1">
+            <label class="font-semibold text-slate-700">Círculos Asignados <span class="text-rose-500">*</span></label>
+            <div class="flex items-center space-x-2">
+              <button type="button" onclick="window.toggleAllAdminCircles(true)" class="text-[10px] text-purple-600 hover:underline font-bold">Todos</button>
+              <span class="text-slate-300">|</span>
+              <button type="button" onclick="window.toggleAllAdminCircles(false)" class="text-[10px] text-slate-500 hover:underline">Limpiar</button>
+              <button type="button" onclick="window.openAddCircleModal('adminCheckboxes')" class="text-[11px] text-purple-600 hover:text-purple-800 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 cursor-pointer">➕ Añadir</button>
+            </div>
+          </div>
+          
+          <div id="adminCirclesCheckboxList" class="max-h-36 overflow-y-auto border border-slate-300 rounded-lg p-2.5 bg-slate-50/50 space-y-1.5 divide-y divide-slate-100"></div>
+          <p class="text-[10px] text-slate-400 mt-1">Puedes marcar uno o varios círculos para esta persona.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Correo (Login) <span class="text-rose-500">*</span></label>
+            <input type="email" id="newAdminEmail" required placeholder="admin@empresa.com" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">PIN de Acceso <span class="text-rose-500">*</span></label>
+            <input type="password" id="newAdminPin" required placeholder="PIN o clave" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-mono">
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" onclick="window.closeNewAdminModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 cursor-pointer">Cancelar</button>
+          <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold cursor-pointer">Guardar Administrador</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: IMPORTACIÓN EXCEL -->
+  <div id="excelImportModal" class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 fade-enter max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+        <h3 class="text-base font-bold text-slate-900">📊 Carga Masiva de Miembros desde Excel</h3>
+        <button onclick="window.closeExcelImportModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">✕</button>
+      </div>
+
+      <div class="mb-4">
+        <label for="excelFileInput" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-emerald-50/20 transition-all text-center">
+          <span class="text-xs font-bold text-slate-700" id="excelFileNameDisplay">Haz clic para seleccionar tu archivo Excel</span>
+          <span class="text-[11px] text-slate-500 mt-1">Columnas reconocidas: DNI, NOMBRE Y APELLIDO, RANGO, CIRCULO, CORREO, CELULAR. No es necesario que todas estén completas.</span>
+          <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="window.handleExcelFileSelected(this)">
+        </label>
+      </div>
+
+      <div id="excelPreviewSection" class="hidden flex-1 flex-col overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span id="excelParsedCount" class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">0 filas</span>
+        </div>
+
+        <div class="mb-3 p-3 rounded-xl bg-indigo-50 border border-indigo-200">
+          <label class="block text-xs font-bold text-indigo-900 mb-1">Círculo destino <span class="text-rose-500">*</span></label>
+          <select id="excelImportTargetCircle" required onchange="window.handleCircleSelectChange(this)" class="w-full px-3 py-2 border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-xs font-semibold"></select>
+          <p class="text-[11px] text-indigo-700 mt-1.5">⚠️ Los miembros <strong>nuevos</strong> serán asignados al círculo elegido aquí. El sistema no realiza asignaciones automáticas ni crea círculos nuevos, aunque el Excel traiga una columna "Círculo".</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto border border-slate-200 rounded-xl max-h-52">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-100 font-semibold sticky top-0">
+              <tr>
+                <th class="p-2">#</th>
+                <th class="p-2">DNI</th>
+                <th class="p-2">Nombre</th>
+                <th class="p-2">Rango</th>
+                <th class="p-2">Círculo (en archivo)</th>
+                <th class="p-2">Email</th>
+              </tr>
+            </thead>
+            <tbody id="excelPreviewTableBody" class="divide-y divide-slate-100 bg-white"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-100 flex justify-end space-x-2 text-xs">
+        <button type="button" onclick="window.closeExcelImportModal()" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 cursor-pointer">Cancelar</button>
+        <button type="button" id="btnProcessExcelBatch" onclick="window.processExcelBatchImport()" disabled class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-semibold cursor-pointer">Guardar en Base de Datos</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE NOTIFICACIONES -->
+  <div id="toast" class="fixed bottom-5 right-5 z-[100] transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center p-4 rounded-xl shadow-xl border max-w-md">
+    <div id="toastIcon" class="mr-3 text-lg"></div>
+    <div>
+      <h4 id="toastTitle" class="font-bold text-xs"></h4>
+      <p id="toastMessage" class="text-xs opacity-90"></p>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT: MOTOR COMPLETO CON CONEXIÓN EN TIEMPO REAL VÍA FIREBASE -->
+  <script>
+    // CONFIGURACIÓN DE FIREBASE REALTIME DATABASE
+    const firebaseConfig = {
+      apiKey: "AIzaSyCs61hkz48ho1QcVnt4Lc7DFM4wd8yaxdc",
+      authDomain: "circuloliderazgo-a7d6e.firebaseapp.com",
+      databaseURL: "https://circuloliderazgo-a7d6e-default-rtdb.firebaseio.com",
+      projectId: "circuloliderazgo-a7d6e",
+      storageBucket: "circuloliderazgo-a7d6e.firebasestorage.app",
+      messagingSenderId: "599027832649",
+      appId: "1:599027832649:web:d78cd89aebc2c1d8062c98"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    window.ADMIN_MASTER_PIN = "2026";
+
+    window.availableCircles = [
+      "PRESENCIAL -- LIMA",
+      "PRESENCIAL -- CUSCO",
+      "PRESENCIAL -- AREQUIPA",
+      "VIRTUAL 1",
+      "VIRTUAL 2",
+      "VIRTUAL 3",
+      "VIRTUAL 4"
+    ];
+
+    window.circleUsers = [];
+    window.adminUsers = [
+      {
+        id: "ADM-001",
+        doc: "00000000",
+        name: "Administrador Principal",
+        email: "admin@empresa.com",
+        pin: "2026",
+        role: "Administrador",
+        circleScope: ["Todos los Círculos"],
+        createdAt: new Date().toISOString()
+      }
+    ];
+    window.circleMeetings = [];
+    window.deletedMeetingIds = [];
+    window.auditLogEntries = [
+      {
+        id: 1,
+        author: "Sistema",
+        action: "Base de Datos Conectada a Firebase",
+        details: "Sincronización en tiempo real habilitada para todos los dispositivos.",
+        time: "Hoy",
+        timestamp: Date.now()
+      }
+    ];
+
+    window.currentSessionUser = null;
+    window.currentDate = new Date();
+    window.currentOpenMeetingId = null;
+    window.currentAuthAction = null;
+    window.parsedExcelUsers = [];
+    window.targetCircleSelectForNew = null;
+    window.activeQrTimerInterval = null;
+    window.currentMeetingQrData = null;
+    window.currentAttendanceTarget = null;
+
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+    // Sistema de Toast
+    window.showToast = function(title, message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
+      const toastIcon = document.getElementById('toastIcon');
+      if (!toast) return;
+
+      toastTitle.innerText = title;
+      toastMessage.innerText = message;
+
+      if (type === 'success') {
+        toast.className = "fixed bottom-5 right-5 z-[100] transform translate-y-0 opacity-100 transition-all duration-300 pointer-events-auto flex items-center p-4 rounded-xl shadow-xl border bg-emerald-50 border-emerald-200 text-emerald-900";
+        toastIcon.innerText = "✅";
+      } else if (type === 'error') {
+        toast.className = "fixed bottom-5 right-5 z-[100] transform translate-y-0 opacity-100 transition-all duration-300 pointer-events-auto flex items-center p-4 rounded-xl shadow-xl border bg-rose-50 border-rose-200 text-rose-900";
+        toastIcon.innerText = "❌";
+      } else {
+        toast.className = "fixed bottom-5 right-5 z-[100] transform translate-y-0 opacity-100 transition-all duration-300 pointer-events-auto flex items-center p-4 rounded-xl shadow-xl border bg-indigo-50 border-indigo-200 text-indigo-900";
+        toastIcon.innerText = "ℹ️";
+      }
+
+      setTimeout(() => {
+        toast.className = "fixed bottom-5 right-5 z-[100] transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center p-4 rounded-xl shadow-xl border max-w-md";
+      }, 3500);
+    };
+
+    // Controladores de Modales
+    window.showModal = function(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('hidden');
+      el.classList.add('flex');
+    };
+
+    window.hideModal = function(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('hidden');
+      el.classList.remove('flex');
+    };
+
+    // Login Administrativo
+    window.handleLogin = function(event) {
+      if (event) event.preventDefault();
+      const identifier = (document.getElementById('loginEmail')?.value || '').trim().toLowerCase();
+      const password = (document.getElementById('loginPassword')?.value || '').trim();
+      const errBox = document.getElementById('loginErrorMessage');
+
+      const foundAdmin = (window.adminUsers || []).find(a => 
+        (a.email && a.email.toLowerCase() === identifier) || 
+        (a.doc && a.doc.toLowerCase() === identifier)
+      );
+
+      if (foundAdmin && (foundAdmin.pin === password || password === window.ADMIN_MASTER_PIN)) {
+        window.currentSessionUser = foundAdmin;
+        window.finalizeLoginSession();
+      } else {
+        if (errBox) {
+          errBox.innerText = "Credenciales incorrectas. Verifique su correo/DNI y PIN.";
+          errBox.classList.remove('hidden');
+        }
+      }
+    };
+
+    window.finalizeLoginSession = function() {
+      document.getElementById('authScreen').style.display = 'none';
+      const embajadorAuth = document.getElementById('embajadorPortalAuthScreen');
+      if (embajadorAuth) embajadorAuth.style.display = 'none';
+
+      document.getElementById('mainAppHeader').classList.remove('hidden');
+      document.getElementById('mainAppNav').classList.remove('hidden');
+      document.getElementById('mainAdminContainer').classList.remove('hidden');
+
+      document.getElementById('currentUserNameLabel').innerText = window.currentSessionUser.name;
+      document.getElementById('currentUserRoleLabel').innerText = window.currentSessionUser.role;
+      const initials = window.currentSessionUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      document.getElementById('currentUserAvatar').innerText = initials || 'AD';
+
+      window.populateCircleDropdowns();
+      window.renderAdminCirclesCheckboxes();
+      window.renderCalendar();
+      window.renderMonthlyReport();
+      window.renderUserDirectory();
+      window.renderAdminDirectory();
+      window.renderAuditLogs();
+      window.updateGlobalStats();
+      window.showToast("Bienvenido", `Sesión iniciada como ${window.currentSessionUser.name} (soy.embajador)`, "success");
+    };
+
+    // Login para la vista "soy.embajador" con DNI de Miembro
+    window.handleEmbajadorMemberLogin = function(event) {
+      if (event) event.preventDefault();
+      const dni = (document.getElementById('embajadorPortalDni')?.value || '').trim().toLowerCase();
+      const errBox = document.getElementById('embajadorLoginErrorMessage');
+
+      const foundMember = (window.circleUsers || []).find(u => 
+        String(u.doc || '').trim().toLowerCase() === dni
+      );
+
+      if (foundMember) {
+        window.currentSessionUser = {
+          id: foundMember.id,
+          doc: foundMember.doc,
+          name: foundMember.name,
+          email: foundMember.email,
+          role: 'Miembro',
+          circle: foundMember.circle,
+          job: foundMember.job
+        };
+        window.finalizeEmbajadorMemberSession();
+      } else {
+        if (errBox) {
+          errBox.innerText = `El DNI '${dni}' no se encuentra registrado en el directorio de miembros.`;
+          errBox.classList.remove('hidden');
+        }
+      }
+    };
+
+    window.finalizeEmbajadorMemberSession = function() {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('embajadorPortalAuthScreen').style.display = 'none';
+      document.getElementById('mainAppHeader').classList.add('hidden');
+      document.getElementById('mainAppNav').classList.add('hidden');
+      document.getElementById('mainAdminContainer').classList.add('hidden');
+      document.getElementById('memberPortalView').classList.remove('hidden');
+
+      const m = window.currentSessionUser;
+      document.getElementById('memberPortalNameDisplay').innerText = m.name;
+      document.getElementById('memberPortalRankDisplay').innerText = m.job || 'Miembro';
+      document.getElementById('memberPortalDniDisplay').innerText = m.doc || 'S/D';
+      document.getElementById('memberPortalCircleDisplay').innerText = m.circle || '-';
+      document.getElementById('memberPortalCircleBadge').innerText = m.circle || 'Círculo';
+
+      window.renderMemberPortalMeetings();
+      window.showToast("Portal de Embajador", `Bienvenido a tu portal, ${m.name}`, "success");
+    };
+
+    window.handleLogout = function() {
+      window.currentSessionUser = null;
+      const isEmbajadorRoute = window.location.pathname.includes('embajador') || window.location.search.includes('embajador');
+      if (isEmbajadorRoute) {
+        document.getElementById('memberPortalView').classList.add('hidden');
+        document.getElementById('embajadorPortalAuthScreen').style.display = 'flex';
+        const dniInput = document.getElementById('embajadorPortalDni');
+        if (dniInput) dniInput.value = '';
+      } else {
+        document.getElementById('authScreen').style.display = 'flex';
+        document.getElementById('mainAppHeader').classList.add('hidden');
+        document.getElementById('mainAppNav').classList.add('hidden');
+        document.getElementById('mainAdminContainer').classList.add('hidden');
+      }
+      window.showToast("Sesión Cerrada", "Has salido del sistema de forma segura.", "info");
+    };
+
+    window.handleEmbajadorLogout = function() {
+      window.currentSessionUser = null;
+      document.getElementById('memberPortalView').classList.add('hidden');
+      document.getElementById('embajadorPortalAuthScreen').style.display = 'flex';
+      const dniInput = document.getElementById('embajadorPortalDni');
+      if (dniInput) dniInput.value = '';
+      window.showToast("Sesión Cerrada", "Has salido de tu portal de embajador.", "info");
+    };
+
+    // Cambio de pestañas
+    window.switchTab = function(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.className = "tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer";
+      });
+
+      const activeTab = document.getElementById(tabId);
+      if (activeTab) activeTab.classList.remove('hidden');
+
+      const activeBtn = document.getElementById(`btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.className = "tab-btn px-3 py-2 rounded-lg font-medium text-brand-600 bg-brand-50 border border-brand-200/60 flex items-center space-x-2 cursor-pointer";
+      }
+
+      if (tabId === 'tab-calendar') window.renderCalendar();
+      if (tabId === 'tab-report') window.renderMonthlyReport();
+      if (tabId === 'tab-users') window.renderUserDirectory();
+      if (tabId === 'tab-admins') window.renderAdminDirectory();
+      if (tabId === 'tab-audit') window.renderAuditLogs();
+    };
+
+    // Navegación de Meses
+    window.changeCurrentMonth = function(delta) {
+      const base = window.currentDate instanceof Date && !isNaN(window.currentDate.getTime())
+        ? window.currentDate
+        : new Date();
+
+      const currentYear = base.getFullYear();
+      const currentMonth = base.getMonth();
+
+      const absoluteMonth = (currentYear * 12) + currentMonth + Number(delta);
+      const newYear = Math.floor(absoluteMonth / 12);
+      const newMonth = absoluteMonth - (newYear * 12);
+
+      window.currentDate = new Date(newYear, newMonth, 1, 12, 0, 0, 0);
+    };
+
+    window.prevMonth = function() {
+      window.changeCurrentMonth(-1);
+      window.renderCalendar();
+    };
+
+    window.nextMonth = function() {
+      window.changeCurrentMonth(1);
+      window.renderCalendar();
+    };
+
+    window.goToToday = function() {
+      window.currentDate = new Date();
+      window.renderCalendar();
+    };
+
+    // Auto-reparación y limpieza
+    window.sanitizeData = function() {
+      let changed = false;
+
+      if (window.circleUsers && window.circleUsers.length > 0) {
+        const memberNames = new Set(window.circleUsers.map(u => String(u.name || '').trim().toUpperCase()));
+        const originalLen = window.availableCircles.length;
+        window.availableCircles = window.availableCircles.filter(c => !memberNames.has(String(c).trim().toUpperCase()));
+        if (window.availableCircles.length !== originalLen) changed = true;
+      }
+
+      if (changed) window.saveDataToServer();
+    };
+
+    // CONEXIÓN EN TIEMPO REAL CON FIREBASE
+    //
+    // IMPORTANTE: primero hacemos una lectura inicial con `once('value')` y
+    // esperamos a que Firebase entregue los datos. Después dejamos activo el
+    // listener `on('value')` para conservar la sincronización en tiempo real.
+    // Esto evita que la vista pública del QR intente buscar una reunión cuando
+    // `window.circleMeetings` todavía está vacío.
+    let firebaseRef = db.ref('circulosDB');
+    let firebaseListenerStarted = false;
+    let firebaseFirstLoadPromise = null;
+    let lastFirebasePayload = null;
+
+    function cloneFirebaseData(data) { return JSON.parse(JSON.stringify(data || {})); }
+    function normalizeFirebasePayload(data) {
+      return {
+        circles: Array.isArray(data?.circles) ? data.circles : [],
+        users: Array.isArray(data?.users) ? data.users : [],
+        admins: Array.isArray(data?.admins) ? data.admins : [],
+        meetings: Array.isArray(data?.meetings) ? data.meetings : [],
+        deletedMeetings: Array.isArray(data?.deletedMeetings) ? data.deletedMeetings : [],
+        audit: Array.isArray(data?.audit) ? data.audit : []
+      };
+    }
+
+    function applyFirebaseData(snapshot) {
+      const data = snapshot?.val ? snapshot.val() : snapshot;
+      if (!data) return;
+      const normalized = normalizeFirebasePayload(data);
+      lastFirebasePayload = cloneFirebaseData(normalized);
+      window.availableCircles = normalized.circles;
+      window.circleUsers = normalized.users;
+      window.adminUsers = normalized.admins;
+      window.circleMeetings = normalized.meetings;
+      window.deletedMeetingIds = normalized.deletedMeetings;
+      window.auditLogEntries = normalized.audit;
+      window.populateCircleDropdowns();
+      window.renderAdminCirclesCheckboxes();
+      if (window.currentSessionUser) {
+        if (window.currentSessionUser.role === 'Miembro') {
+          window.renderMemberPortalMeetings();
+        } else {
+          window.renderCalendar(); window.renderMonthlyReport(); window.renderUserDirectory();
+          window.renderAdminDirectory(); window.renderAuditLogs(); window.updateGlobalStats();
+          if (window.currentOpenMeetingId) window.renderOpenMeetingAttendeesTable();
+        }
+      }
+      window.sanitizeData();
+    }
+
+    window.syncWithBackend = async function() {
+      if (firebaseListenerStarted) return firebaseFirstLoadPromise;
+      firebaseListenerStarted = true;
+      firebaseFirstLoadPromise = new Promise((resolve, reject) => {
+        let firstSnapshot = true;
+        firebaseRef.on('value', (snapshot) => {
+          try {
+            applyFirebaseData(snapshot);
+            if (firstSnapshot) { firstSnapshot = false; resolve({success:true,data:snapshot.val()||{}}); }
+          } catch (error) {
+            console.error('Error procesando datos de Firebase:', error);
+            if (firstSnapshot) { firstSnapshot=false; reject(error); }
+          }
+        }, (error) => {
+          console.error('Error en la conexión con Firebase Realtime Database:', error);
+          if (firstSnapshot) { firstSnapshot=false; reject(error); }
+        });
+      });
+      return firebaseFirstLoadPromise;
+    };
+
+    window.saveDataToServer = async function() {
+      const localPayload = normalizeFirebasePayload({circles:window.availableCircles,users:window.circleUsers,admins:window.adminUsers,meetings:window.circleMeetings,deletedMeetings:window.deletedMeetingIds,audit:window.auditLogEntries});
+      try {
+        const base = lastFirebasePayload || {};
+        await firebaseRef.transaction((serverData) => {
+          const server = normalizeFirebasePayload(serverData || {});
+          const merged = cloneFirebaseData(server);
+          ['circles','users','admins','meetings','deletedMeetings','audit'].forEach(section => {
+            if (JSON.stringify(base[section] ?? []) !== JSON.stringify(localPayload[section] ?? [])) merged[section] = localPayload[section];
+          });
+          return merged;
+        });
+        lastFirebasePayload = cloneFirebaseData(localPayload);
+        localStorage.setItem('CIRCULOS_DB_SOYEMBAJADOR', JSON.stringify(localPayload));
+        return {success:true};
+      } catch (e) {
+        console.error('Error al sincronizar con Firebase:', e);
+        window.showToast?.('Error de sincronización','No se pudo guardar en Firebase. Revisa tu conexión y las reglas de Realtime Database.','error');
+        return {success:false,error:e.message};
+      }
+    };
+
+    window.getUserAllowedCircles = function(user) {
+      if (!user) return [...window.availableCircles];
+      if (user.role === "Administrador" || user.role === "Superadministrador") return [...window.availableCircles];
+      
+      const scope = user.circleScope;
+      if (!scope) return [...window.availableCircles];
+      
+      if (Array.isArray(scope)) {
+        if (scope.includes("Todos los Círculos") || scope.length === 0) return [...window.availableCircles];
+        return scope;
+      }
+      if (typeof scope === 'string') {
+        if (scope === "Todos los Círculos" || scope === "") return [...window.availableCircles];
+        return [scope];
+      }
+      return [...window.availableCircles];
+    };
+
+    window.updateGlobalStats = function() {
+      const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
+      const scopedMeetings = (window.circleMeetings || []).filter(m => allowedCircles.includes(m.circle));
+      const badgeM = document.getElementById('badge-meeting-count');
+      if (badgeM) badgeM.innerText = scopedMeetings.length;
+    };
+
+    // Directorio de Miembros
+    window.renderUserDirectory = function() {
+      const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
+      const isModerator = (window.currentSessionUser?.role === "Moderador");
+      const search = (document.getElementById('userSearchInput')?.value || '').toLowerCase().trim();
+      let circleFilter = document.getElementById('userCircleFilter')?.value || '';
+
+      const tbody = document.getElementById('userDirectoryTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const filtered = (window.circleUsers || []).filter(u => {
+        const inScope = allowedCircles.includes(u.circle);
+        const matchesSearch = !search || 
+          (u.name && u.name.toLowerCase().includes(search)) || 
+          (u.doc && u.doc.toLowerCase().includes(search)) || 
+          (u.job && u.job.toLowerCase().includes(search)) || 
+          (u.circle && u.circle.toLowerCase().includes(search));
+        const matchesCircle = !circleFilter || (u.circle === circleFilter);
+        return inScope && matchesSearch && matchesCircle;
+      });
+
+      const badgeU = document.getElementById('badge-users-count');
+      if (badgeU) badgeU.innerText = filtered.length;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">No hay miembros registrados en los círculos asignados.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(u => {
+        let assigned = 0, attended = 0, absent = 0, justified = 0;
+        (window.circleMeetings || []).forEach(m => {
+          if (m.circle === u.circle) {
+            assigned++;
+            const rec = m.attendees?.find(a => a.userId === u.id);
+            if (rec) {
+              if (rec.status === "Asistió" || rec.status === "Clase Presencial") attended++;
+              else if (rec.status === "Justificado" || rec.status === "Falta Justificada") justified++;
+              else absent++;
+            } else {
+              absent++;
+            }
+          }
+        });
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50";
+        tr.innerHTML = `
+          <td class="px-4 py-3.5 font-mono font-bold text-emerald-800">${u.doc || 'S/D'}</td>
+          <td class="px-5 py-3.5 font-bold text-slate-900">${u.name}</td>
+          <td class="px-4 py-3.5"><span class="px-2 py-0.5 text-xs font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-200">${u.circle}</span></td>
+          <td class="px-4 py-3.5 font-medium text-slate-600">${u.job || 'Miembro'}</td>
+          <td class="px-4 py-3.5 text-xs text-slate-500">${u.email || '-'}<br>${u.phone || '-'}</td>
+          <td class="px-4 py-3.5">
+            <div class="font-bold text-xs text-slate-800">${attended} / ${assigned} asignadas</div>
+            <div class="text-[10px] text-slate-400">${attended} asistió · ${absent} no asistió · ${justified} justif.</div>
+          </td>
+          <td class="px-4 py-3.5 text-right space-x-1">
+            ${!isModerator ? `
+              <button onclick="window.openEditUserModal('${u.id}')" class="p-1 text-brand-600 hover:bg-brand-50 rounded cursor-pointer" title="Editar">✏️</button>
+              <button onclick="window.promptDeleteUser('${u.id}')" class="p-1 text-rose-600 hover:bg-rose-50 rounded cursor-pointer" title="Eliminar">🗑️</button>
+            ` : '<span class="text-xs text-slate-400 font-medium">Solo Lectura</span>'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      window.updateGlobalStats();
+    };
+
+    // Auto-generación de reuniones fijas
+    window.ensureRecurringMeetingsForMonth = function(year, month) {
+      if (!window.availableCircles || window.availableCircles.length === 0) return;
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      let created = false;
+
+      const counters = { 'ANUNCIOS CORPORATIVOS': 0, 'MES': 0, 'HEALTH': 0 };
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(year, month, day);
+        const weekDay = dateObj.getDay();
+        const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        let type = null;
+        if (weekDay === 0) type = 'ANUNCIOS CORPORATIVOS';
+        else if (weekDay === 3) type = 'MES';
+        else if (weekDay === 4) type = 'HEALTH';
+
+        if (type) {
+          counters[type]++;
+          const sessionTitle = `Sesión ${counters[type]}`;
+
+          window.availableCircles.forEach(circle => {
+            const meetingId = `AUTO-${type.replace(/\s+/g, '')}-${dayStr}-${circle.replace(/\s+/g, '')}`;
+
+            if ((window.deletedMeetingIds || []).includes(meetingId)) return;
+
+            const exists = (window.circleMeetings || []).some(m => String(m.id) === meetingId || (m.date === dayStr && m.circle === circle && m.type === type));
+
+            if (!exists) {
+              window.circleMeetings.push({
+                id: meetingId,
+                title: sessionTitle,
+                type: type,
+                circle: circle,
+                host: 'Sistema',
+                date: dayStr,
+                time: '09:00',
+                location: 'Virtual / Presencial',
+                qrActive: false,
+                attendees: []
+              });
+              created = true;
+            }
+          });
+        }
+      }
+
+      if (created) {
+        window.saveDataToServer();
+      }
+    };
+
+    // Calendario
+    window.renderCalendar = function() {
+      const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
+      const year = window.currentDate.getFullYear();
+      const month = window.currentDate.getMonth();
+      const filterCircle = document.getElementById('circleFilter')?.value || '';
+
+      window.ensureRecurringMeetingsForMonth(year, month);
+
+      const calMY = document.getElementById('calendarMonthYear');
+      if (calMY) calMY.innerText = `${monthNames[month]} ${year}`;
+
+      const grid = document.getElementById('calendarDaysGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const prevMonthDays = new Date(year, month, 0).getDate();
+
+      for (let i = firstDay - 1; i >= 0; i--) {
+        const cell = document.createElement('div');
+        cell.className = "min-h-[95px] bg-slate-50/50 p-2 text-slate-300 text-xs";
+        cell.innerHTML = `<span>${prevMonthDays - i}</span>`;
+        grid.appendChild(cell);
+      }
+
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const typeCounters = { 'ANUNCIOS CORPORATIVOS': 0, 'MES': 0, 'HEALTH': 0, 'MASTERCLASS': 0 };
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const cell = document.createElement('div');
+        const dateObj = new Date(year, month, day);
+        const weekDay = dateObj.getDay();
+        const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const isToday = dayStr === todayStr;
+
+        const dayMeetings = (window.circleMeetings || []).filter(m => {
+          const matchDate = m.date === dayStr;
+          const inScope = allowedCircles.includes(m.circle);
+          const matchCircle = !filterCircle || m.circle === filterCircle;
+          return matchDate && inScope && matchCircle;
+        });
+
+        let category = null;
+        if (weekDay === 0) {
+          category = { name: 'ANUNCIOS CORPORATIVOS', badge: 'bg-purple-100 text-purple-800 border-purple-200', cell: 'bg-purple-50/40' };
+        } else if (weekDay === 3) {
+          category = { name: 'MES', badge: 'bg-yellow-100 text-yellow-800 border-yellow-200', cell: 'bg-yellow-50/40' };
+        } else if (weekDay === 4) {
+          category = { name: 'HEALTH', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', cell: 'bg-emerald-50/40' };
+        } else if (weekDay === 5 && dayMeetings.some(m => {
+          const type = String(m.type || '').trim().toUpperCase();
+          const title = String(m.title || '').trim().toUpperCase();
+          return type === 'MASTERCLASS' || title === 'MASTERCLASS' || title.includes('MASTERCLASS');
+        })) {
+          category = { name: 'MASTERCLASS', badge: 'bg-blue-100 text-blue-800 border-blue-200', cell: 'bg-blue-50/30' };
+        }
+
+        if (category) typeCounters[category.name]++;
+
+        const dayClass = category ? category.cell : 'bg-white';
+        cell.className = `min-h-[95px] ${dayClass} p-2 text-xs flex flex-col justify-between hover:bg-slate-50 ${isToday ? 'ring-2 ring-brand-500' : ''}`;
+
+        let headerHtml = `
+          <div class="flex items-center justify-between gap-1">
+            <span class="font-bold ${isToday ? 'text-brand-600' : 'text-slate-700'}">${day}</span>
+            ${category ? `<span class="px-1.5 py-0.5 rounded-md border ${category.badge} text-[8px] font-bold truncate max-w-[145px]" title="${category.name}">${category.name}</span>` : ''}
+          </div>`;
+
+        let meetingsHtml = `<div class="space-y-1 mt-1">`;
+        dayMeetings.forEach(m => {
+          const titleUpper = String(m.title || '').trim().toUpperCase();
+          const typeUpper = String(m.type || '').trim().toUpperCase();
+          let meetingClass = 'bg-indigo-50 border-indigo-200 text-indigo-900';
+
+          if (weekDay === 3 || typeUpper === 'MES' || titleUpper === 'MES') {
+            meetingClass = 'bg-yellow-100 border-yellow-300 text-yellow-800';
+          } else if (weekDay === 4 || typeUpper === 'HEALTH' || titleUpper === 'HEALTH') {
+            meetingClass = 'bg-emerald-100 border-emerald-300 text-emerald-800';
+          } else if (weekDay === 0 || typeUpper === 'ANUNCIOS CORPORATIVOS' || titleUpper === 'ANUNCIOS CORPORATIVOS') {
+            meetingClass = 'bg-purple-100 border-purple-300 text-purple-800';
+          } else if (weekDay === 5 || typeUpper === 'MASTERCLASS' || titleUpper === 'MASTERCLASS' || titleUpper.includes('MASTERCLASS')) {
+            meetingClass = 'bg-blue-100 border-blue-300 text-blue-800';
+          }
+
+          let displayTitle = m.title;
+          if (!displayTitle || ['MES', 'HEALTH', 'MASTERCLASS', 'ANUNCIOS CORPORATIVOS'].includes(displayTitle.toUpperCase())) {
+            displayTitle = category ? `Sesión ${typeCounters[category.name]}` : 'Sesión';
+          }
+
+          meetingsHtml += `
+            <div onclick="window.openMeetingModal('${m.id}')" class="p-1 rounded border ${meetingClass} cursor-pointer text-[10px] truncate hover:brightness-95" title="${displayTitle} (${m.circle})">
+              <strong>${displayTitle}</strong> ${m.circle ? `(${m.circle})` : ''}
+            </div>`;
+        });
+        meetingsHtml += `</div>`;
+
+        cell.innerHTML = `<div class="w-full">${headerHtml}${meetingsHtml}</div>`;
+        grid.appendChild(cell);
+      }
+
+      window.updateGlobalStats();
+    };
+
+    // Reporte Mensual
+    function reportDateKey(year, monthIndex, day) {
+      return `${year}-${String(monthIndex + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    }
+
+    function reportCategoryForDate(dateStr) {
+      const d = new Date(`${dateStr}T12:00:00`);
+      const w = d.getDay();
+      if (w === 3) return 'MES';
+      if (w === 4) return 'HEALTH';
+      if (w === 5) return 'MASTERCLASS';
+      if (w === 0) return 'ANUNCIOS CORPORATIVOS';
+      return null;
+    }
+
+    function reportTypeOfMeeting(m) {
+      const type = String(m?.type || '').trim().toUpperCase();
+      const title = String(m?.title || '').trim().toUpperCase();
+      if (type === 'MASTERCLASS' || title.includes('MASTERCLASS')) return 'MASTERCLASS';
+      if (type === 'MES' || title === 'MES') return 'MES';
+      if (type === 'HEALTH' || title === 'HEALTH') return 'HEALTH';
+      if (type === 'ANUNCIOS CORPORATIVOS' || title === 'ANUNCIOS CORPORATIVOS') return 'ANUNCIOS CORPORATIVOS';
+      return reportCategoryForDate(m?.date);
+    }
+
+    function reportIsJustified(rec) {
+      const s = String(rec?.status || '').trim().toUpperCase();
+      return s === 'JUSTIFICADO' || s === 'FALTA JUSTIFICADA';
+    }
+
+    function reportIsAttendance(rec) {
+      const s = String(rec?.status || '').trim().toUpperCase();
+      return s === 'ASISTIÓ' || s === 'ASISTIO' || s === 'CLASE PRESENCIAL';
+    }
+
+    function reportStatusFor(rec, jClass) {
+      if (!rec) return { symbol: '', cls: 'text-slate-300', title: 'Pendiente' };
+      const s = String(rec.status || '').trim().toUpperCase();
+      if (reportIsJustified(rec)) {
+        if (jClass === 'valid') return { symbol: 'J', cls: 'text-emerald-700 bg-emerald-50 font-extrabold', title: 'Justificado válido · cuenta como asistencia' };
+        return { symbol: 'J', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'Justificado excedente · no cuenta como asistencia' };
+      }
+      if (s === 'ASISTIÓ' || s === 'ASISTIO') return { symbol: '✓', cls: 'text-emerald-700 bg-emerald-50 font-extrabold', title: 'Asistió' };
+      if (s === 'CLASE PRESENCIAL') return { symbol: 'P', cls: 'text-sky-700 bg-sky-50 font-extrabold', title: 'Clase Presencial' };
+      return { symbol: 'F', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'No asistió' };
+    }
+
+    function getReportMeetingFor(user, dateStr, category) {
+      const meetings = (window.circleMeetings || []).filter(m =>
+        m.date === dateStr && m.circle === user.circle && reportTypeOfMeeting(m) === category
+      );
+      if (meetings.length) return meetings[0];
+
+      const circleKey = user.circle ? user.circle.replace(/\s+/g, '') : '';
+      const isDeleted = (window.deletedMeetingIds || []).some(deletedId => {
+        return deletedId === `${dateStr}-${user.circle}` ||
+               deletedId === `${dateStr}-${circleKey}` ||
+               deletedId.includes(`${dateStr}-${circleKey}`) ||
+               deletedId.includes(`${dateStr}-${user.circle}`);
+      });
+
+      if (isDeleted) return null;
+
+      if (category === 'MASTERCLASS') return null;
+      return { 
+        id: `virtual-${category}-${dateStr}-${user.circle}`, 
+        date: dateStr, 
+        circle: user.circle, 
+        type: category, 
+        title: category, 
+        virtual: true, 
+        attendees: [] 
+      };
+    }
+
+    function getReportSessionsForMonth(year, monthIndex, user) {
+      const days = new Date(year, monthIndex + 1, 0).getDate();
+      const out = [];
+      for (let day = 1; day <= days; day++) {
+        const dateStr = reportDateKey(year, monthIndex, day);
+        const category = reportCategoryForDate(dateStr);
+        if (!category) continue;
+        const meeting = getReportMeetingFor(user, dateStr, category);
+        if (!meeting) continue;
+        out.push({ date: dateStr, category, meeting });
+      }
+      return out.sort((a,b) => {
+        const order = { MES:0, HEALTH:1, MASTERCLASS:2, 'ANUNCIOS CORPORATIVOS':3 };
+        return order[a.category]-order[b.category] || a.date.localeCompare(b.date);
+      });
+    }
+
+    function getReportJClasses(user, sessions) {
+      const result = new Map();
+      const mesJs = [];
+      const sharedJs = [];
+
+      sessions.forEach(s => {
+        const rec = (s.meeting?.attendees || []).find(a => a.userId === user.id);
+        if (!rec || !reportIsJustified(rec)) return;
+
+        if (s.category === 'MES') {
+          mesJs.push({s, rec});
+        } else if (['HEALTH', 'ANUNCIOS CORPORATIVOS', 'MASTERCLASS'].includes(s.category)) {
+          sharedJs.push({s, rec});
+        }
+      });
+
+      mesJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
+      sharedJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
+
+      mesJs.forEach((x, i) => {
+        result.set(x.s.date + '|' + x.s.category, i < 1 ? 'valid' : 'extra');
+      });
+
+      sharedJs.forEach((x, i) => {
+        result.set(x.s.date + '|' + x.s.category, i < 3 ? 'valid' : 'extra');
+      });
+
+      return result;
+    }
+
+    function getReportPersonStats(user, sessions) {
+      const jClasses = getReportJClasses(user, sessions);
+      const today = new Date();
+      today.setHours(23,59,59,999);
+      let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
+      sessions.forEach(s => {
+        const rec = (s.meeting.attendees || []).find(a => a.userId === user.id);
+        const sessionDate = new Date(`${s.date}T23:59:59`);
+        const occurred = sessionDate <= today;
+        if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
+        scheduled++;
+        if (!rec) { absent++; return; }
+        if (reportIsJustified(rec)) {
+          const jc = jClasses.get(s.date + '|' + s.category) || 'extra';
+          if (jc === 'valid') { attended++; justifiedValid++; }
+          else { absent++; justifiedExtra++; }
+        } else if (reportIsAttendance(rec)) attended++;
+        else absent++;
+      });
+      const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
+      const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
+      return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
+    }
+
+    function reportBadge(text, cls) {
+      return `<span class="inline-flex items-center justify-center min-w-[26px] px-1.5 py-1 rounded-md ${cls}">${text}</span>`;
+    }
+
+    window.reportPrevMonth = function(){
+      window.changeCurrentMonth(-1);
+      window.renderMonthlyReport();
+    };
+
+    window.reportNextMonth = function(){
+      window.changeCurrentMonth(1);
+      window.renderMonthlyReport();
+    };
+
+    window.reportGoToday = function(){
+      window.currentDate = new Date();
+      window.renderMonthlyReport();
+    };
+
+    window.renderMonthlyReport = function() {
+      const head = document.getElementById('monthlyReportHead');
+      const body = document.getElementById('monthlyReportBody');
+      const cards = document.getElementById('reportSummaryCards');
+      const title = document.getElementById('reportMonthTitle');
+      const badge = document.getElementById('badge-report-month');
+      if (!head || !body || !cards) return;
+
+      const year = window.currentDate.getFullYear();
+      const month = window.currentDate.getMonth();
+      const allowed = window.getUserAllowedCircles(window.currentSessionUser);
+      const filter = document.getElementById('reportCircleFilter')?.value || '';
+      const search = (document.getElementById('reportMemberSearch')?.value || '').trim().toUpperCase();
+      const users = (window.circleUsers || []).filter(u => {
+        if (!allowed.includes(u.circle)) return false;
+        if (filter && u.circle !== filter) return false;
+        if (!search) return true;
+        const haystack = [u.name, u.doc, u.email, u.circle].map(v => String(v || '')).join(' ').toUpperCase();
+        return haystack.includes(search);
+      });
+      const monthTitle = `${monthNames[month]} ${year}`;
+      if (title) title.innerText = `Reporte de Asistencia · ${monthTitle}`;
+      if (badge) badge.innerText = monthNames[month].slice(0,3).toUpperCase();
+
+      const allSessionsMap = new Map();
+      users.forEach(u => getReportSessionsForMonth(year, month, u).forEach(s => {
+        const key = `${s.date}|${s.category}`;
+        allSessionsMap.set(key, s);
+      }));
+      const allSessions = Array.from(allSessionsMap.values()).sort((a,b)=>{
+        const order={MES:0,HEALTH:1,MASTERCLASS:2,'ANUNCIOS CORPORATIVOS':3};
+        return order[a.category]-order[b.category] || a.date.localeCompare(b.date);
+      });
+
+      let totalScheduled=0,totalAttend=0,totalAbsent=0,totalPending=0,totalBonus=0;
+      const userStats = users.map(u => {
+        const sessions = getReportSessionsForMonth(year, month, u);
+        const stats = getReportPersonStats(u, sessions);
+        totalScheduled += stats.scheduled; totalAttend += stats.attended; totalAbsent += stats.absent; totalPending += stats.pending;
+        if (stats.bonus) totalBonus++;
+        return {u,sessions,stats};
+      });
+      const generalPct = totalScheduled ? Math.round(totalAttend/totalScheduled*100) : 0;
+      cards.innerHTML = [
+        ['👥','Miembros',users.length,'text-brand-700','bg-brand-50'],
+        ['📅','Sesiones ocurridas',totalScheduled,'text-slate-800','bg-slate-50'],
+        ['✅','Asistencias',totalAttend,'text-emerald-700','bg-emerald-50'],
+        ['❌','Faltas',totalAbsent,'text-rose-700','bg-rose-50'],
+        ['🏆','Bonos',totalBonus,'text-amber-700','bg-amber-50']
+      ].map(c=>`<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3"><div class="w-9 h-9 rounded-lg ${c[4]} flex items-center justify-center">${c[0]}</div><div><p class="text-[10px] uppercase font-bold text-slate-400">${c[1]}</p><p class="text-xl font-extrabold ${c[3]}">${c[2]}</p></div></div>`).join('') +
+      `<div class="col-span-2 lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-xs"><p class="text-[10px] uppercase font-bold text-slate-400">Asistencia general</p><p class="text-2xl font-extrabold text-brand-700">${generalPct}%</p><p class="text-[10px] text-slate-400">Pendientes: ${totalPending}</p></div>`;
+
+      const byCat = {MES:[],HEALTH:[],MASTERCLASS:[],'ANUNCIOS CORPORATIVOS':[]};
+      allSessions.forEach(s=>byCat[s.category].push(s));
+      const catStyle = {
+        MES:'bg-yellow-500 text-yellow-950', HEALTH:'bg-emerald-500 text-emerald-950',
+        MASTERCLASS:'bg-blue-600 text-white', 'ANUNCIOS CORPORATIVOS':'bg-purple-600 text-white'
+      };
+      const catLabel = {MES:'MES',HEALTH:'HEALTH',MASTERCLASS:'MASTERCLASS','ANUNCIOS CORPORATIVOS':'ANUNCIOS CORPORATIVOS'};
+      let top = `<tr class="text-[10px] uppercase"><th rowspan="2" class="sticky left-0 z-20 bg-slate-900 text-white px-3 py-2 min-w-[210px] text-left">Usuario</th><th rowspan="2" class="sticky left-[210px] z-20 bg-slate-900 text-white px-2 py-2 min-w-[150px] text-left">Círculo</th>`;
+      Object.keys(byCat).forEach(cat=>{ if(byCat[cat].length) top += `<th colspan="${byCat[cat].length}" class="px-2 py-2 border-l border-white/20 ${catStyle[cat]}">${catLabel[cat]}</th>`; });
+      top += `<th colspan="4" rowspan="1" class="px-2 py-2 bg-slate-900 text-white border-l">RESUMEN</th></tr>`;
+      let second = `<tr class="bg-slate-100 text-slate-600">`;
+      Object.keys(byCat).forEach(cat=>byCat[cat].forEach(s=>{ second += `<th class="px-2 py-2 border-l border-slate-200 min-w-[70px]">${s.date.slice(8,10)}/${s.date.slice(5,7)}</th>`; }));
+      second += `<th class="px-2 py-2 bg-slate-900 text-white border-l min-w-[65px]">ASIST.</th><th class="px-2 py-2 bg-slate-900 text-white min-w-[65px]">FALTAS</th><th class="px-2 py-2 bg-slate-900 text-white min-w-[60px]">%</th><th class="px-2 py-2 bg-slate-900 text-white min-w-[80px]">BONO</th></tr>`;
+      head.innerHTML = top + second;
+
+      if (!users.length) {
+        body.innerHTML = `<tr><td colspan="${2+allSessions.length+4}" class="p-10 text-center text-slate-400">No hay miembros registrados en los círculos seleccionados.</td></tr>`;
+        return;
+      }
+
+      body.innerHTML = '';
+      userStats.forEach(({u,stats})=>{
+        const rowSessions = getReportSessionsForMonth(year, month, u);
+        const byKey = new Map(rowSessions.map(s=>[`${s.date}|${s.category}`,s]));
+        let cells = '';
+        allSessions.forEach(s=>{
+          const own = byKey.get(`${s.date}|${s.category}`);
+          let rec = own ? (own.meeting.attendees || []).find(a=>a.userId===u.id) : null;
+          let jc = rec && reportIsJustified(rec) ? (stats.jClasses.get(`${s.date}|${s.category}`)||'extra') : null;
+          
+          const sessionDate = new Date(`${s.date}T23:59:59`);
+          const occurred = sessionDate <= new Date();
+
+          if (!own) {
+            cells += `<td class="px-2 py-2 border-l border-slate-100 text-slate-200">—</td>`;
+          } else if (!occurred && (!rec || rec.status === 'No asistió')) {
+            cells += `<td class="px-2 py-2 border-l border-slate-100" title="Pendiente (Fecha futura)">${reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
+          } else if (!rec) {
+            cells += `<td class="px-2 py-2 border-l border-slate-100">${occurred ? reportBadge('F','text-rose-700 bg-rose-50 font-extrabold') : reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
+          } else {
+            const st = reportStatusFor(rec,jc);
+            let title = st.title;
+            if (reportIsJustified(rec)) {
+              const bucket = s.category === 'MES' ? 'MES · máximo 1 J' : 'HEALTH + ANUNCIOS + MASTERCLASS · máximo 3 J';
+              const validCount = Array.from(stats.jClasses.entries()).filter(([key, value]) => value === 'valid' && (s.category === 'MES' ? key.endsWith('|MES') : ['HEALTH','MASTERCLASS','ANUNCIOS CORPORATIVOS'].some(c => key.endsWith('|' + c)))).length;
+              title += ` · ${bucket} · ${jc === 'valid' ? validCount : 'excedente'}`;
+            }
+            cells += `<td class="px-2 py-2 border-l border-slate-100" title="${title}">${reportBadge(st.symbol,st.cls)}</td>`;
+          }
+        });
+        const bonusHtml = stats.bonus ? `<span class="inline-flex px-2 py-1 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 font-extrabold">🏆 GANÓ</span>` : `<span class="text-slate-300">—</span>`;
+        const tr=document.createElement('tr');
+        tr.className='hover:bg-slate-50';
+        tr.innerHTML=`<td class="sticky left-0 z-10 bg-white px-3 py-2 text-left border-r border-slate-200"><div class="font-extrabold text-slate-900">${u.name||'Sin nombre'}</div><div class="text-[10px] text-slate-400 font-mono">DNI: ${u.doc||'S/D'}</div></td><td class="sticky left-[210px] z-10 bg-white px-2 py-2 text-left border-r border-slate-200"><span class="px-2 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold">${u.circle||'-'}</span></td>${cells}<td class="px-2 py-2 font-extrabold text-emerald-700">${stats.attended}</td><td class="px-2 py-2 font-extrabold text-rose-700">${stats.absent}</td><td class="px-2 py-2 font-extrabold text-brand-700">${stats.pct}%</td><td class="px-2 py-2">${bonusHtml}</td>`;
+        body.appendChild(tr);
+      });
+    };
+
+    // Directorio de Administradores
+    window.renderAdminDirectory = function() {
+      const tbody = document.getElementById('adminDirectoryTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      const badgeA = document.getElementById('badge-admins-count');
+      if (badgeA) badgeA.innerText = (window.adminUsers || []).length;
+
+      (window.adminUsers || []).forEach(a => {
+        const allowed = window.getUserAllowedCircles(a);
+        let scopeHtml = '';
+
+        if (a.role === "Administrador" || allowed.length === window.availableCircles.length) {
+          scopeHtml = '<span class="px-2 py-0.5 text-xs font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">🌐 Todos los Círculos</span>';
+        } else {
+          scopeHtml = allowed.map(c => `<span class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 text-slate-700 border border-slate-200 mr-1 mb-1">🏷️ ${c}</span>`).join('');
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="px-5 py-3.5">
+            <div class="font-bold text-slate-900">${a.name}</div>
+            <div class="text-xs text-slate-400 font-mono">DNI: ${a.doc}</div>
+          </td>
+          <td class="px-4 py-3.5"><span class="px-2 py-0.5 text-xs font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">${a.role}</span></td>
+          <td class="px-4 py-3.5 max-w-xs">${scopeHtml}</td>
+          <td class="px-4 py-3.5 text-xs">${a.email}</td>
+          <td class="px-4 py-3.5 font-mono text-xs">•••• (${a.pin})</td>
+          <td class="px-4 py-3.5 text-right">
+            ${a.id !== 'ADM-001' ? `<button onclick="window.promptDeleteAdmin('${a.id}')" class="text-xs text-rose-600 hover:underline cursor-pointer">Revocar</button>` : '<span class="text-xs text-slate-400 font-semibold">Principal</span>'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      window.updateGlobalStats();
+    };
+
+    // SISTEMA DE DESHACER (UNDO) — BITÁCORA DE AUDITORÍA
+    window.captureAuditSnapshot = function() {
+      return {
+        circleMeetings: JSON.parse(JSON.stringify(window.circleMeetings || [])),
+        circleUsers: JSON.parse(JSON.stringify(window.circleUsers || [])),
+        availableCircles: JSON.parse(JSON.stringify(window.availableCircles || [])),
+        deletedMeetingIds: JSON.parse(JSON.stringify(window.deletedMeetingIds || []))
+      };
+    };
+
+    window.logAuditAction = function(entryData, snapshotBefore) {
+      window.auditLogEntries.unshift({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        time: 'Hace un momento',
+        timestamp: Date.now(),
+        undone: false,
+        snapshot: snapshotBefore || null,
+        ...entryData
+      });
+    };
+
+    window.undoAuditAction = async function(entryId) {
+      const entry = (window.auditLogEntries || []).find(e => String(e.id) === String(entryId));
+      if (!entry) return;
+
+      if (window.currentSessionUser?.role === "Moderador") {
+        window.showToast("Acción Denegada", "Los moderadores no pueden deshacer acciones.", "error");
+        return;
+      }
+      if (!entry.snapshot) {
+        window.showToast("No se puede deshacer", "Esta acción no tiene un punto de restauración disponible.", "error");
+        return;
+      }
+      if (entry.undone) {
+        window.showToast("Ya deshecha", "Esta acción ya fue deshecha anteriormente.", "info");
+        return;
+      }
+      if (!confirm(`¿Deshacer la acción "${entry.action}"?\n\n${entry.details}\n\nEsto restaurará el estado de los datos previo a esta acción.`)) {
+        return;
+      }
+
+      window.circleMeetings = JSON.parse(JSON.stringify(entry.snapshot.circleMeetings || []));
+      window.circleUsers = JSON.parse(JSON.stringify(entry.snapshot.circleUsers || []));
+      window.availableCircles = JSON.parse(JSON.stringify(entry.snapshot.availableCircles || []));
+      window.deletedMeetingIds = JSON.parse(JSON.stringify(entry.snapshot.deletedMeetingIds || []));
+
+      entry.undone = true;
+
+      window.auditLogEntries.unshift({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Deshizo Acción',
+        details: `Se deshizo: "${entry.action}" — ${entry.details}`,
+        time: 'Hace un momento',
+        timestamp: Date.now(),
+        undone: false,
+        snapshot: null
+      });
+
+      await window.saveDataToServer();
+      window.populateCircleDropdowns();
+      window.renderAdminCirclesCheckboxes();
+      window.renderCalendar();
+      window.renderMonthlyReport();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.updateGlobalStats();
+      window.showToast("Acción Deshecha", "El estado anterior fue restaurado correctamente.", "success");
+    };
+
+    window.renderAuditLogs = function() {
+      if (window.currentSessionUser?.role === "Moderador") return;
+      const list = document.getElementById('auditLogList');
+      if (!list) return;
+      list.innerHTML = '';
+
+      (window.auditLogEntries || []).forEach(log => {
+        const li = document.createElement('li');
+        li.className = "py-2.5 border-b border-slate-100 flex justify-between items-start gap-3 text-xs";
+        const canUndo = !!log.snapshot && !log.undone;
+        li.innerHTML = `
+          <div class="flex-1 min-w-0">
+            <div><strong>${log.action}</strong> por <span class="text-brand-600 font-semibold">${log.author}</span>: ${log.details}</div>
+            ${log.undone ? '<span class="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded">↩️ Acción deshecha</span>' : ''}
+          </div>
+          <div class="flex flex-col items-end gap-1.5 shrink-0">
+            <div class="text-slate-400 whitespace-nowrap">${log.time || 'Hoy'}</div>
+            ${canUndo ? `<button onclick="window.undoAuditAction('${log.id}')" class="text-[10px] font-bold text-rose-600 hover:text-rose-800 hover:underline cursor-pointer whitespace-nowrap">↩️ Deshacer</button>` : ''}
+          </div>
+        `;
+        list.appendChild(li);
+      });
+    };
+
+    window.populateCircleDropdowns = function(selectedName = "", targetSelectId = "") {
+      window.sanitizeData();
+      const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
+      const role = window.currentSessionUser?.role || "Administrador";
+      const isAdmin = (role === "Administrador" || role === "Superadministrador");
+
+      const selects = [
+        { id: 'circleFilter', hasAll: true, allowAdd: false },
+        { id: 'reportCircleFilter', hasAll: false, allowAdd: false },
+        { id: 'userCircleFilter', hasAll: true, allowAdd: false },
+        { id: 'newMeetCircle', hasAll: false, allowAdd: isAdmin },
+        { id: 'newUserCircle', hasAll: false, allowAdd: isAdmin },
+        { id: 'editUserCircle', hasAll: false, allowAdd: isAdmin },
+        { id: 'excelImportTargetCircle', hasAll: false, allowAdd: isAdmin }
+      ];
+
+      selects.forEach(({ id, hasAll, allowAdd }) => {
+        const select = document.getElementById(id);
+        if (!select) return;
+        const currentVal = select.value;
+        select.innerHTML = '';
+
+        if (hasAll) {
+          const optAll = document.createElement('option');
+          optAll.value = '';
+          optAll.innerText = (allowedCircles.length > 1) ? 'Todos mis Círculos Asignados' : 'Círculo Asignado';
+          select.appendChild(optAll);
+        } else {
+          const optPl = document.createElement('option');
+          optPl.value = '';
+          optPl.innerText = 'Seleccione un círculo';
+          select.appendChild(optPl);
+        }
+
+        allowedCircles.forEach(circle => {
+          const opt = document.createElement('option');
+          opt.value = circle;
+          opt.innerText = circle;
+          select.appendChild(opt);
+        });
+
+        if (allowAdd && isAdmin) {
+          const optAdd = document.createElement('option');
+          optAdd.value = '__ADD_NEW__';
+          optAdd.innerText = '➕ Añadir nuevo círculo...';
+          optAdd.className = 'font-bold text-indigo-600 bg-indigo-50';
+          select.appendChild(optAdd);
+        }
+
+        if (id === 'reportCircleFilter') {
+          if (selectedName && allowedCircles.includes(selectedName)) {
+            select.value = selectedName;
+          } else if (currentVal && allowedCircles.includes(currentVal)) {
+            select.value = currentVal;
+          } else if (allowedCircles.length) {
+            select.value = allowedCircles[0];
+          } else {
+            select.value = '';
+          }
+          select.disabled = false;
+        } else if (allowedCircles.length === 1 && !isAdmin) {
+          select.value = allowedCircles[0];
+          if (id === 'newUserCircle' || id === 'newMeetCircle') select.disabled = true;
+        } else {
+          select.disabled = false;
+          if (id === targetSelectId && selectedName) {
+            select.value = selectedName;
+          } else if (currentVal && (allowedCircles.includes(currentVal) || currentVal === '')) {
+            select.value = currentVal;
+          }
+        }
+      });
+    };
+
+    window.renderAdminCirclesCheckboxes = function(selectedCircles = []) {
+      window.sanitizeData();
+      const container = document.getElementById('adminCirclesCheckboxList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      window.availableCircles.forEach(circle => {
+        const isChecked = selectedCircles.includes(circle) || selectedCircles.includes("Todos los Círculos");
+        const div = document.createElement('div');
+        div.className = "flex items-center justify-between p-1.5 hover:bg-white rounded transition-colors";
+        div.innerHTML = `
+          <label class="flex items-center space-x-2 cursor-pointer w-full text-xs text-slate-700 font-medium">
+            <input type="checkbox" name="adminCircleScopeCheck" value="${circle}" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500">
+            <span>🏷️ ${circle}</span>
+          </label>
+        `;
+        container.appendChild(div);
+      });
+    };
+
+    window.toggleAllAdminCircles = function(select) {
+      document.querySelectorAll('input[name="adminCircleScopeCheck"]').forEach(cb => cb.checked = select);
+    };
+
+    window.handleAdminRoleChange = function(role) {
+      const wrapper = document.getElementById('adminCirclesSelectionWrapper');
+      if (wrapper) {
+        if (role === "Administrador") {
+          wrapper.classList.add('opacity-50', 'pointer-events-none');
+          window.toggleAllAdminCircles(true);
+        } else {
+          wrapper.classList.remove('opacity-50', 'pointer-events-none');
+        }
+      }
+    };
+
+    window.handleCircleSelectChange = function(selectEl) {
+      if (selectEl.value === '__ADD_NEW__') {
+        window.openAddCircleModal(selectEl.id);
+      }
+      if (selectEl.id === 'excelImportTargetCircle') {
+        window.updateExcelImportButtonState();
+      }
+    };
+
+    window.updateExcelImportButtonState = function() {
+      const btn = document.getElementById('btnProcessExcelBatch');
+      if (!btn) return;
+      const hasRows = (window.parsedExcelUsers || []).length > 0;
+      const targetSelect = document.getElementById('excelImportTargetCircle');
+      const hasTarget = !!(targetSelect && targetSelect.value && targetSelect.value !== '__ADD_NEW__');
+      btn.disabled = !(hasRows && hasTarget);
+    };
+
+    // Añadir Círculo
+    window.openAddCircleModal = function(targetSelectId = '') {
+      document.getElementById('targetCircleSelectId').value = targetSelectId;
+      document.getElementById('newCircleNameInput').value = '';
+      window.showModal('addCircleModal');
+    };
+
+    window.closeAddCircleModal = function() {
+      window.hideModal('addCircleModal');
+    };
+
+    window.handleCreateCircle = function(event) {
+      if (event) event.preventDefault();
+      const nameInput = document.getElementById('newCircleNameInput');
+      const targetSelectId = document.getElementById('targetCircleSelectId').value;
+      const newName = (nameInput?.value || '').trim().toUpperCase();
+
+      if (!newName) return;
+
+      if (window.availableCircles.includes(newName)) {
+        window.showToast("Círculo Existente", "Este círculo ya se encuentra registrado.", "error");
+        return;
+      }
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      window.availableCircles.push(newName);
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Creó Círculo',
+        details: `Se creó el nuevo círculo "${newName}"`
+      }, beforeSnapshot);
+
+      window.saveDataToServer();
+      window.populateCircleDropdowns(newName, targetSelectId);
+      window.renderAdminCirclesCheckboxes();
+      window.renderAuditLogs();
+      window.closeAddCircleModal();
+      if (targetSelectId === 'excelImportTargetCircle') window.updateExcelImportButtonState();
+      window.showToast("Círculo Creado", `El círculo '${newName}' fue añadido exitosamente.`, "success");
+    };
+
+    // Eliminar Círculo
+    window.promptDeleteCircle = async function(circleName) {
+      const selectedCircle = circleName || document.getElementById('userCircleFilter')?.value || document.getElementById('circleFilter')?.value;
+      
+      if (!selectedCircle) {
+        window.showToast("Selecciona un Círculo", "Por favor selecciona un círculo específico en el filtro para poder eliminarlo.", "error");
+        return;
+      }
+
+      if (window.currentSessionUser?.role === "Moderador") {
+        window.showToast("Acción Denegada", "Los moderadores no pueden eliminar círculos.", "error");
+        return;
+      }
+
+      if (!confirm(`¿Estás seguro de eliminar el círculo "${selectedCircle}"?\n\n⚠️ Esta acción removerá el círculo y eliminará todas las reuniones asociadas a él.`)) {
+        return;
+      }
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      window.availableCircles = (window.availableCircles || []).filter(c => c !== selectedCircle);
+      window.circleMeetings = (window.circleMeetings || []).filter(m => m.circle !== selectedCircle);
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Eliminó Círculo',
+        details: `Se eliminó el círculo "${selectedCircle}" y sus reuniones asociadas`
+      }, beforeSnapshot);
+
+      await window.saveDataToServer();
+      window.populateCircleDropdowns();
+      window.renderAdminCirclesCheckboxes();
+      window.renderCalendar();
+      window.renderMonthlyReport();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.showToast("Círculo Eliminado", `El círculo "${selectedCircle}" ha sido eliminado exitosamente.`, "info");
+    };
+
+    // Programar Reunión
+    window.openNewMeetingModal = function() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('newMeetTitle').value = '';
+      document.getElementById('newMeetDate').value = today;
+      document.getElementById('newMeetTime').value = '09:00';
+      document.getElementById('newMeetLocation').value = 'Sala Magna / Enlace Virtual';
+      if (window.currentSessionUser) {
+        document.getElementById('newMeetHost').value = window.currentSessionUser.name;
+      }
+      window.populateCircleDropdowns();
+      window.showModal('newMeetingModal');
+    };
+
+    window.closeNewMeetingModal = function() {
+      window.hideModal('newMeetingModal');
+    };
+
+    window.handleCreateMeeting = function(event) {
+      if (event) event.preventDefault();
+      const title = document.getElementById('newMeetTitle').value.trim();
+      const circle = document.getElementById('newMeetCircle').value;
+      const host = document.getElementById('newMeetHost').value.trim();
+      const date = document.getElementById('newMeetDate').value;
+      const time = document.getElementById('newMeetTime').value;
+      const location = document.getElementById('newMeetLocation').value.trim();
+
+      if (!title || !circle || !date) {
+        window.showToast("Campos Requeridos", "Complete todos los campos obligatorios.", "error");
+        return;
+      }
+
+      const circleKey = circle.replace(/\s+/g, '');
+      window.deletedMeetingIds = (window.deletedMeetingIds || []).filter(k => 
+        k !== `${date}-${circle}` && 
+        k !== `${date}-${circleKey}` && 
+        !k.includes(`${date}-${circleKey}`) && 
+        !k.includes(`${date}-${circle}`)
+      );
+
+      const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+      let autoType = 'ORDINARIA';
+      if (dayOfWeek === 0) autoType = 'ANUNCIOS CORPORATIVOS';
+      else if (dayOfWeek === 3) autoType = 'MES';
+      else if (dayOfWeek === 4) autoType = 'HEALTH';
+      else if (dayOfWeek === 5) autoType = 'MASTERCLASS';
+
+      const newMeet = {
+        id: 'MEET-' + Date.now(),
+        title,
+        type: autoType,
+        circle,
+        host,
+        date,
+        time,
+        location,
+        qrActive: false,
+        qrStartTimestamp: null,
+        qrEndTimestamp: null,
+        qrStartTime: null,
+        qrEndTime: null,
+        attendees: []
+      };
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      window.circleMeetings.push(newMeet);
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Programó Reunión',
+        details: `${title} (${circle}) para el ${date}`
+      }, beforeSnapshot);
+
+      window.saveDataToServer();
+      window.closeNewMeetingModal();
+      window.renderCalendar();
+      window.renderMonthlyReport();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.showToast("Reunión Programada", `Se programó '${title}' para ${date}.`, "success");
+    };
+
+    // Masterclass del mes
+    window.createMonthlyMasterclasses = async function() {
+      const year = window.currentDate.getFullYear();
+      const month = window.currentDate.getMonth();
+      const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
+      const filterCircle = document.getElementById('circleFilter')?.value || '';
+      const targetCircle = filterCircle || allowedCircles[0] || window.availableCircles[0] || '';
+
+      if (!targetCircle) {
+        window.showToast('Sin círculo disponible', 'No hay un círculo disponible para crear la Masterclass.', 'error');
+        return;
+      }
+
+      const fridayDates = [];
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(year, month, day);
+        if (dateObj.getDay() === 5) {
+          fridayDates.push(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+        }
+      }
+
+      const existing = (window.circleMeetings || []).filter(m => {
+        const type = String(m.type || '').toUpperCase();
+        const title = String(m.title || '').toUpperCase();
+        return type === 'MASTERCLASS' || title === 'MASTERCLASS';
+      });
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+      let created = 0;
+
+      fridayDates.forEach(dateStr => {
+        const duplicate = existing.some(m => m.date === dateStr && m.circle === targetCircle);
+        if (duplicate) return;
+
+        window.circleMeetings.push({
+          id: `MASTERCLASS-${dateStr}-${targetCircle}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+          title: 'MASTERCLASS',
+          type: 'MASTERCLASS',
+          circle: targetCircle,
+          host: window.currentSessionUser?.name || 'Administrador',
+          date: dateStr,
+          time: '09:00',
+          location: 'Sala Magna / Enlace Virtual',
+          qrActive: false,
+          qrStartTimestamp: null,
+          qrEndTimestamp: null,
+          qrStartTime: null,
+          qrEndTime: null,
+          attendees: []
+        });
+
+        created++;
+      });
+
+      if (created === 0) {
+        window.renderCalendar();
+        window.showToast('Masterclass ya creadas', `Las Masterclass de los viernes de ${monthNames[month]} ya están registradas para ${targetCircle}.`, 'info');
+        return;
+      }
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Creación Masiva de Masterclass',
+        details: `Se crearon ${created} Masterclass para los viernes de ${monthNames[month]} ${year} en ${targetCircle}.`
+      }, beforeSnapshot);
+
+      await window.saveDataToServer();
+      window.renderCalendar();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.updateGlobalStats();
+      window.showToast('Masterclass creadas', `Se crearon ${created} Masterclass en los viernes de ${monthNames[month]}.`, 'success');
+    };
+
+    window.deleteMonthlyMasterclasses = async function() {
+      const year = window.currentDate.getFullYear();
+      const month = window.currentDate.getMonth();
+      const filterCircle = document.getElementById('circleFilter')?.value || '';
+      const allowed = window.getUserAllowedCircles(window.currentSessionUser);
+      const circles = filterCircle ? [filterCircle] : allowed;
+      const targets = new Set();
+      window.circleMeetings.forEach(m => {
+        const type = String(m.type || '').toUpperCase();
+        const title = String(m.title || '').toUpperCase();
+        const d = new Date(`${m.date}T12:00:00`);
+        if ((type === 'MASTERCLASS' || title.includes('MASTERCLASS')) &&
+            d.getFullYear() === year && d.getMonth() === month && circles.includes(m.circle)) targets.add(m.id);
+      });
+      if (!targets.size) {
+        window.showToast('Sin Masterclass', `No hay Masterclass para eliminar en ${monthNames[month]} ${year}.`, 'info');
+        return;
+      }
+      if (!confirm(`¿Eliminar ${targets.size} Masterclass de ${monthNames[month]} ${year}? Esta acción quitará también sus registros de asistencia.`)) return;
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      targets.forEach(id => {
+        if (!window.deletedMeetingIds.includes(String(id))) window.deletedMeetingIds.push(String(id));
+      });
+
+      window.circleMeetings = window.circleMeetings.filter(m => !targets.has(m.id));
+      window.logAuditAction({author:window.currentSessionUser?.name||'Administrador',action:'Eliminación de Masterclass',details:`Se eliminaron ${targets.size} Masterclass de ${monthNames[month]} ${year}.`}, beforeSnapshot);
+      await window.saveDataToServer();
+      window.renderCalendar();
+      window.renderMonthlyReport();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.updateGlobalStats();
+      window.showToast('Masterclass eliminadas', `Se eliminaron ${targets.size} Masterclass del mes.`, 'success');
+    };
+
+    // Acta de Reunión
+    window.openMeetingModal = function(meetingId) {
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(meetingId));
+      if (!meeting) return;
+
+      window.currentOpenMeetingId = meetingId;
+      document.getElementById('modalMeetingBadge').innerText = meeting.circle;
+      document.getElementById('modalMeetingDate').innerText = `${meeting.date} · ${meeting.time || '09:00'}`;
+      document.getElementById('modalMeetingTitle').innerText = meeting.title;
+      document.getElementById('modalMeetingLocation').innerText = `Moderador: ${meeting.host || '-'} | Ubicación: ${meeting.location || '-'}`;
+
+      window.renderQrActionBar(meeting);
+      window.renderOpenMeetingAttendeesTable();
+      window.showModal('meetingModal');
+    };
+
+    window.closeMeetingModal = function() {
+      window.currentOpenMeetingId = null;
+      window.hideModal('meetingModal');
+    };
+
+    // Eliminar Sesión Individual
+    window.promptDeleteMeeting = async function(meetingId) {
+      const targetId = meetingId || window.currentOpenMeetingId;
+      if (!targetId) return;
+
+      if (window.currentSessionUser?.role === "Moderador") {
+        window.showToast("Acción Denegada", "Los moderadores no pueden eliminar sesiones.", "error");
+        return;
+      }
+
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(targetId));
+      if (!meeting) return;
+
+      if (!confirm(`¿Estás seguro de eliminar la sesión "${meeting.title}" (${meeting.circle} - ${meeting.date})?`)) {
+        return;
+      }
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      if (!window.deletedMeetingIds) window.deletedMeetingIds = [];
+      const circleKey = meeting.circle ? meeting.circle.replace(/\s+/g, '') : '';
+      const typeKey = meeting.type ? meeting.type.replace(/\s+/g, '') : reportTypeOfMeeting(meeting);
+
+      const keysToDelete = [
+        String(targetId),
+        `AUTO-${typeKey}-${meeting.date}-${circleKey}`,
+        `${meeting.date}-${meeting.circle}`,
+        `${meeting.date}-${circleKey}`
+      ];
+
+      keysToDelete.forEach(k => {
+        if (!window.deletedMeetingIds.includes(k)) window.deletedMeetingIds.push(k);
+      });
+
+      window.circleMeetings = (window.circleMeetings || []).filter(m => String(m.id) !== String(targetId));
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Eliminó Sesión',
+        details: `Se eliminó la sesión "${meeting.title}" (${meeting.circle} - ${meeting.date})`
+      }, beforeSnapshot);
+
+      await window.saveDataToServer();
+      window.closeMeetingModal();
+      window.renderCalendar();
+      window.renderMonthlyReport();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.updateGlobalStats();
+      window.showToast("Sesión Eliminada", `La sesión "${meeting.title}" fue eliminada correctamente.`, "info");
+    };
+
+    window.renderOpenMeetingAttendeesTable = function() {
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
+      if (!meeting) return;
+
+      const tbody = document.getElementById('modalAttendeesTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const circleMembers = (window.circleUsers || []).filter(u => u.circle === meeting.circle);
+      if (!meeting.attendees) meeting.attendees = [];
+
+      let presentCount = 0;
+      let absentCount = 0;
+      let justifiedCount = 0;
+
+      if (circleMembers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-400">No hay miembros inscritos en el círculo '${meeting.circle}'.</td></tr>`;
+      } else {
+        circleMembers.forEach(u => {
+          let rec = meeting.attendees.find(a => a.userId === u.id);
+          if (!rec) {
+            rec = { userId: u.id, status: 'No asistió', note: '-' };
+            meeting.attendees.push(rec);
+          }
+
+          if (rec.status === 'Asistió' || rec.status === 'Clase Presencial') presentCount++;
+          else if (rec.status === 'Justificado' || rec.status === 'Falta Justificada') justifiedCount++;
+          else absentCount++;
+
+          let statusBadge = '';
+          if (rec.status === 'Asistió') {
+            statusBadge = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">✅ Asistió</span>`;
+          } else if (rec.status === 'Clase Presencial') {
+            statusBadge = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200">🏫 Clase Presencial</span>`;
+          } else if (rec.status === 'Justificado' || rec.status === 'Falta Justificada') {
+            statusBadge = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">📝 Justificado</span>`;
+          } else {
+            statusBadge = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">❌ No asistió</span>`;
+          }
+
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-slate-50";
+          tr.innerHTML = `
+            <td class="p-3">
+              <div class="font-bold text-slate-900">${u.name}</div>
+              <div class="text-[11px] text-slate-400 font-mono">DNI: ${u.doc || 'S/D'} · Rango: ${u.job || 'Miembro'}</div>
+            </td>
+            <td class="p-3">${statusBadge}</td>
+            <td class="p-3 text-xs text-slate-500">${rec.note || '-'}</td>
+            <td class="p-3 text-right">
+              ${window.currentSessionUser?.role !== 'Moderador' ? `
+                <button onclick="window.openAdminPinModal('${meeting.id}', '${u.id}', '${rec.status}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold cursor-pointer transition-colors">
+                  ✏️ Cambiar Estado
+                </button>
+              ` : '<span class="text-xs text-slate-400">Lectura</span>'}
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById('modalStatsTotal').innerText = circleMembers.length;
+      document.getElementById('modalStatsPresent').innerText = presentCount;
+      document.getElementById('modalStatsAbsent').innerText = absentCount;
+      document.getElementById('modalStatsJustified').innerText = justifiedCount;
+    };
+
+    window.renderQrActionBar = function(meeting) {
+      const bar = document.getElementById('qrMeetingActionBar');
+      if (!bar) return;
+
+      const isModerator = (window.currentSessionUser?.role === "Moderador");
+      if (isModerator) {
+        bar.classList.add('hidden');
+        return;
+      }
+      bar.classList.remove('hidden');
+
+      const now = Date.now();
+      const isQrActive = meeting.qrActive && meeting.qrEndTimestamp && meeting.qrEndTimestamp > now;
+      const qrUrl = new URL(window.location.href); qrUrl.searchParams.set('asistencia_qr', String(meeting.id)); const publicUrl = qrUrl.toString();
+
+      if (isQrActive) {
+        const remain = meeting.qrEndTimestamp - now;
+        const mins = Math.floor(remain / 60000);
+        const secs = Math.floor((remain % 60000) / 1000);
+        const timeFormatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        bar.className = "mb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-emerald-50/90 border border-emerald-200 p-3.5 rounded-xl";
+        bar.innerHTML = `
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+              <span class="text-xs font-bold text-emerald-950">QR Activo · Tiempo disponible: <span class="font-mono text-emerald-700 font-extrabold text-sm ml-1">${timeFormatted}</span></span>
+            </div>
+            <div class="flex items-center gap-2 mt-1.5">
+              <span class="text-[11px] text-slate-600 font-mono truncate max-w-[240px] sm:max-w-xs bg-white px-2.5 py-1 rounded-lg border border-slate-200 select-all">${publicUrl}</span>
+              <button type="button" onclick="navigator.clipboard.writeText('${publicUrl}'); window.showToast('Enlace Copiado', 'Enlace copiado al portapapeles', 'info');" class="text-[11px] font-bold text-emerald-800 bg-white hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg cursor-pointer transition-colors shadow-2xs">
+                📋 Copiar
+              </button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+            <button type="button" onclick="window.openMeetingQrGenerator(false)" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all">
+              <span>🔍 Ver QR</span>
+            </button>
+          </div>
+        `;
+      } else if (meeting.qrEndTimestamp && meeting.qrEndTimestamp <= now) {
+        bar.className = "mb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-amber-50/90 border border-amber-200 p-3 rounded-xl";
+        bar.innerHTML = `
+          <div>
+            <div class="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+              <span>⏳ QR Expirado</span>
+            </div>
+            <p class="text-[11px] text-amber-700 mt-0.5">El tiempo disponible ha finalizado. Puedes reactivar el QR cuando desees.</p>
+          </div>
+          <button type="button" onclick="window.openMeetingQrGenerator(true)" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition-all">
+            <span>🔄 Reactivar / Generar QR</span>
+          </button>
+        `;
+      } else {
+        bar.className = "mb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-indigo-50 p-3 rounded-xl border border-indigo-100";
+        bar.innerHTML = `
+          <div class="text-xs text-indigo-950 font-medium">
+            <strong>📱 Control Autónomo por QR:</strong> Mientras no se use el QR, todos figuran como "No asistió".
+          </div>
+          <button type="button" onclick="window.openMeetingQrGenerator(true)" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0">
+            <span>📱 Generar QR de Asistencia</span>
+          </button>
+        `;
+      }
+    };
+
+    window.openMeetingQrGenerator = function(forceNew = false) {
+      if (window.currentSessionUser?.role === "Moderador") {
+        window.showToast("Acción Denegada", "Los moderadores no pueden generar códigos QR.", "error");
+        return;
+      }
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
+      if (!meeting) return;
+
+      document.getElementById('qrModalMeetingTitle').innerText = `${meeting.title} (${meeting.circle})`;
+
+      const now = Date.now();
+      const isCurrentlyActive = meeting.qrActive && meeting.qrEndTimestamp && meeting.qrEndTimestamp > now;
+
+      if (!isCurrentlyActive || forceNew) {
+        const nowDate = new Date();
+        const startStr = `${String(nowDate.getHours()).padStart(2, '0')}:${String(nowDate.getMinutes()).padStart(2, '0')}`;
+        const futureDate = new Date(nowDate.getTime() + 3 * 60000);
+        const endStr = `${String(futureDate.getHours()).padStart(2, '0')}:${String(futureDate.getMinutes()).padStart(2, '0')}`;
+
+        document.getElementById('qrInputStartTime').value = meeting.qrStartTime || startStr;
+        document.getElementById('qrInputEndTime').value = meeting.qrEndTime || endStr;
+
+        window.setQrQuickTimer(3);
+      } else {
+        document.getElementById('qrInputStartTime').value = meeting.qrStartTime;
+        document.getElementById('qrInputEndTime').value = meeting.qrEndTime;
+        
+        const qrUrl = new URL(window.location.href); qrUrl.searchParams.set('asistencia_qr', String(meeting.id)); const publicUrl = qrUrl.toString();
+        window.generateQrCodeImage(publicUrl);
+        window.startLiveQrCountdown(meeting.qrEndTimestamp);
+      }
+
+      window.showModal('qrMeetingModal');
+    };
+
+    window.closeQrModal = function() {
+      if (window.activeQrTimerInterval) clearInterval(window.activeQrTimerInterval);
+      window.hideModal('qrMeetingModal');
+      
+      if (window.currentOpenMeetingId) {
+        const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
+        if (meeting) window.renderQrActionBar(meeting);
+      }
+    };
+
+    window.generateQrCodeImage = function(url) {
+      const container = document.getElementById('qrcode');
+      if (!container) return;
+      container.innerHTML = '';
+
+      try {
+        if (typeof QRCode !== 'undefined') {
+          new QRCode(container, {
+            text: url,
+            width: 180,
+            height: 180,
+            colorDark: "#1e1b4b",
+            colorLight: "#ffffff",
+            correctLevel: (typeof QRCode.CorrectLevel !== 'undefined' ? QRCode.CorrectLevel.H : 2)
+          });
+        } else {
+          const img = document.createElement('img');
+          img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`;
+          img.className = "w-44 h-44 mx-auto rounded-xl shadow-md";
+          container.appendChild(img);
+        }
+      } catch (e) {
+        const img = document.createElement('img');
+        img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`;
+        img.className = "w-44 h-44 mx-auto rounded-xl shadow-md";
+        container.appendChild(img);
+      }
+
+      const linkInput = document.getElementById('qrLinkCopyInput');
+      if (linkInput) linkInput.value = url;
+    };
+
+    window.setQrQuickTimer = function(minutes = 3) {
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
+      if (!meeting) return;
+
+      const now = Date.now();
+      const startMs = now;
+      const endMs = now + (minutes * 60 * 1000);
+
+      meeting.qrActive = true;
+      meeting.qrStartTimestamp = startMs;
+      meeting.qrEndTimestamp = endMs;
+
+      const startDate = new Date(startMs);
+      const endDate = new Date(endMs);
+      meeting.qrStartTime = `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`;
+      meeting.qrEndTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+      document.getElementById('qrInputStartTime').value = meeting.qrStartTime;
+      document.getElementById('qrInputEndTime').value = meeting.qrEndTime;
+
+      window.saveDataToServer();
+
+      const qrUrl = new URL(window.location.href); qrUrl.searchParams.set('asistencia_qr', String(meeting.id)); const publicUrl = qrUrl.toString();
+      window.generateQrCodeImage(publicUrl);
+      window.startLiveQrCountdown(endMs);
+      window.renderQrActionBar(meeting);
+
+      window.showToast("QR Activado", `Temporizador iniciado por ${minutes} minutos.`, "success");
+    };
+
+    window.applyCustomQrSchedule = function() {
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
+      if (!meeting) return;
+
+      const startTimeVal = document.getElementById('qrInputStartTime').value;
+      const endTimeVal = document.getElementById('qrInputEndTime').value;
+
+      if (!startTimeVal || !endTimeVal) {
+        window.showToast("Campos Requeridos", "Ingresa hora de inicio y fin.", "error");
+        return;
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const startMs = new Date(`${todayStr}T${startTimeVal}:00`).getTime();
+      const endMs = new Date(`${todayStr}T${endTimeVal}:00`).getTime();
+
+      if (endMs <= startMs) {
+        window.showToast("Horario Inválido", "La hora final debe ser posterior a la de inicio.", "error");
+        return;
+      }
+
+      meeting.qrActive = true;
+      meeting.qrStartTime = startTimeVal;
+      meeting.qrEndTime = endTimeVal;
+      meeting.qrStartTimestamp = startMs;
+      meeting.qrEndTimestamp = endMs;
+
+      window.saveDataToServer();
+
+      const qrUrl = new URL(window.location.href); qrUrl.searchParams.set('asistencia_qr', String(meeting.id)); const publicUrl = qrUrl.toString();
+      window.generateQrCodeImage(publicUrl);
+      window.startLiveQrCountdown(endMs);
+      window.renderQrActionBar(meeting);
+
+      window.showToast("Horario Aplicado", `QR configurado de ${startTimeVal} a ${endTimeVal}.`, "success");
+    };
+
+    window.startLiveQrCountdown = function(endTimestamp) {
+      if (window.activeQrTimerInterval) clearInterval(window.activeQrTimerInterval);
+
+      const updateTimer = () => {
+        const now = Date.now();
+        const diff = endTimestamp - now;
+
+        const displayEl = document.getElementById('qrLiveTimerDisplay');
+
+        if (diff <= 0) {
+          clearInterval(window.activeQrTimerInterval);
+          if (displayEl) {
+            displayEl.innerText = "⏳ QR Finalizado / Expirado";
+            displayEl.className = "text-xs font-bold text-rose-600";
+          }
+          if (window.currentOpenMeetingId) {
+            const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
+            if (meeting) window.renderQrActionBar(meeting);
+          }
+          return;
+        }
+
+        const mins = Math.floor(diff / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        if (displayEl) {
+          displayEl.innerText = `⏱️ Tiempo Restante: ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+          displayEl.className = "text-xs font-bold text-emerald-700";
+        }
+      };
+
+      updateTimer();
+      window.activeQrTimerInterval = setInterval(updateTimer, 1000);
+    };
+
+    window.copyQrLinkToClipboard = function() {
+      const input = document.getElementById('qrLinkCopyInput');
+      if (!input) return;
+      input.select();
+      navigator.clipboard.writeText(input.value);
+      window.showToast("Enlace Copiado", "URL copiada al portapapeles.", "info");
+    };
+
+    // Control Manual con PIN Modal
+    window.openAdminPinModal = function(meetingId, userId, currentStatus) {
+      window.currentAttendanceTarget = { meetingId, userId };
+      document.getElementById('newAttendanceStatus').value = currentStatus || 'Asistió';
+      document.getElementById('attendanceJustificationNote').value = '';
+      document.getElementById('adminSecurityPinInput').value = '';
+      window.showModal('adminPinModal');
+    };
+
+    window.closeAdminPinModal = function() {
+      window.currentAttendanceTarget = null;
+      window.hideModal('adminPinModal');
+    };
+
+    window.executeAttendanceChange = function(event) {
+      if (event) event.preventDefault();
+      const target = window.currentAttendanceTarget;
+      if (!target) return;
+
+      const newStatus = document.getElementById('newAttendanceStatus').value;
+      const noteInput = document.getElementById('attendanceJustificationNote').value.trim();
+      const pinInput = document.getElementById('adminSecurityPinInput').value.trim();
+
+      const userPin = window.currentSessionUser?.pin || '';
+      if (pinInput !== userPin && pinInput !== window.ADMIN_MASTER_PIN) {
+        window.showToast("PIN Incorrecto", "El PIN de seguridad ingresado no es válido.", "error");
+        return;
+      }
+
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(target.meetingId));
+      if (!meeting) return;
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      if (!meeting.attendees) meeting.attendees = [];
+      let att = meeting.attendees.find(a => a.userId === target.userId);
+
+      const nowObj = new Date();
+      const timeMarked = `${String(nowObj.getHours()).padStart(2, '0')}:${String(nowObj.getMinutes()).padStart(2, '0')}`;
+      const finalNote = noteInput ? `${noteInput} (Manual por ${window.currentSessionUser?.name || 'Admin'})` : `Modificado manualmente por ${window.currentSessionUser?.name || 'Admin'} (${timeMarked})`;
+
+      if (att) {
+        att.status = newStatus;
+        att.note = finalNote;
+      } else {
+        meeting.attendees.push({
+          userId: target.userId,
+          status: newStatus,
+          note: finalNote
+        });
+      }
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Modificó Asistencia',
+        details: `Estado cambiado a '${newStatus}' en reunión ${meeting.title}`
+      }, beforeSnapshot);
+
+      window.saveDataToServer();
+      window.closeAdminPinModal();
+      window.renderOpenMeetingAttendeesTable();
+      window.renderUserDirectory();
+      window.renderMonthlyReport();
+      window.renderAuditLogs();
+      window.showToast("Asistencia Actualizada", "El estado del miembro ha sido guardado.", "success");
+    };
+
+    // CRUD de Miembros
+    window.openNewUserModal = function() {
+      document.getElementById('newUserDoc').value = '';
+      document.getElementById('newUserName').value = '';
+      document.getElementById('newUserJob').value = '';
+      document.getElementById('newUserEmail').value = '';
+      document.getElementById('newUserPhone').value = '';
+      window.populateCircleDropdowns();
+      window.showModal('newUserModal');
+    };
+
+    window.closeNewUserModal = function() {
+      window.hideModal('newUserModal');
+    };
+
+    window.handleRegisterUser = function(event) {
+      if (event) event.preventDefault();
+      const doc = document.getElementById('newUserDoc').value.trim();
+      const name = document.getElementById('newUserName').value.trim();
+      const circle = document.getElementById('newUserCircle').value;
+      const job = document.getElementById('newUserJob').value.trim();
+      const email = document.getElementById('newUserEmail').value.trim();
+      const phone = document.getElementById('newUserPhone').value.trim();
+
+      if (!doc || !name || !circle || !email) {
+        window.showToast("Campos Requeridos", "Complete todos los campos obligatorios.", "error");
+        return;
+      }
+
+      const existing = (window.circleUsers || []).find(u => String(u.doc).trim().toLowerCase() === doc.toLowerCase());
+      if (existing) {
+        window.showToast("DNI Duplicado", "Ya existe un miembro registrado con este DNI.", "error");
+        return;
+      }
+
+      const newUser = {
+        id: 'USR-' + Date.now(),
+        doc,
+        name,
+        circle,
+        job,
+        email,
+        phone,
+        createdAt: new Date().toISOString()
+      };
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      window.circleUsers.push(newUser);
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Registró Miembro',
+        details: `${name} (DNI: ${doc}) en ${circle}`
+      }, beforeSnapshot);
+
+      window.saveDataToServer();
+      window.closeNewUserModal();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.showToast("Miembro Registrado", `${name} fue añadido exitosamente.`, "success");
+    };
+
+    window.openEditUserModal = function(userId) {
+      const user = (window.circleUsers || []).find(u => u.id === userId);
+      if (!user) return;
+
+      document.getElementById('editUserId').value = user.id;
+      document.getElementById('editUserDoc').value = user.doc || '';
+      document.getElementById('editUserName').value = user.name || '';
+      document.getElementById('editUserJob').value = user.job || '';
+      document.getElementById('editUserEmail').value = user.email || '';
+      document.getElementById('editUserPhone').value = user.phone || '';
+      window.populateCircleDropdowns(user.circle, 'editUserCircle');
+      window.showModal('editUserModal');
+    };
+
+    window.closeEditUserModal = function() {
+      window.hideModal('editUserModal');
+    };
+
+    window.handleUpdateUser = function(event) {
+      if (event) event.preventDefault();
+      const id = document.getElementById('editUserId').value;
+      const doc = document.getElementById('editUserDoc').value.trim();
+      const name = document.getElementById('editUserName').value.trim();
+      const circle = document.getElementById('editUserCircle').value;
+      const job = document.getElementById('editUserJob').value.trim();
+      const email = document.getElementById('editUserEmail').value.trim();
+      const phone = document.getElementById('editUserPhone').value.trim();
+
+      const user = (window.circleUsers || []).find(u => u.id === id);
+      if (!user) return;
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      user.doc = doc;
+      user.name = name;
+      user.circle = circle;
+      user.job = job;
+      user.email = email;
+      user.phone = phone;
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Actualizó Miembro',
+        details: `${name} (DNI: ${doc})`
+      }, beforeSnapshot);
+
+      window.saveDataToServer();
+      window.closeEditUserModal();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.showToast("Cambios Guardados", "Los datos del miembro fueron actualizados.", "success");
+    };
+
+    window.promptDeleteUser = function(userId) {
+      if (!confirm("¿Está seguro de eliminar este miembro del sistema?")) return;
+      const user = (window.circleUsers || []).find(u => u.id === userId);
+      const beforeSnapshot = window.captureAuditSnapshot();
+      window.circleUsers = (window.circleUsers || []).filter(u => u.id !== userId);
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Eliminó Miembro',
+        details: user ? `${user.name} (DNI: ${user.doc})` : `ID: ${userId}`
+      }, beforeSnapshot);
+      window.saveDataToServer();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.showToast("Miembro Eliminado", "El registro ha sido removido.", "info");
+    };
+
+    // CRUD de Administradores
+    window.openNewAdminModal = function() {
+      document.getElementById('newAdminDoc').value = '';
+      document.getElementById('newAdminName').value = '';
+      document.getElementById('newAdminEmail').value = '';
+      document.getElementById('newAdminPin').value = '';
+      document.getElementById('newAdminRole').value = 'Sub Administrador';
+      window.handleAdminRoleChange('Sub Administrador');
+      window.renderAdminCirclesCheckboxes();
+      window.showModal('newAdminModal');
+    };
+
+    window.closeNewAdminModal = function() {
+      window.hideModal('newAdminModal');
+    };
+
+    window.handleRegisterAdmin = function(event) {
+      if (event) event.preventDefault();
+      const doc = document.getElementById('newAdminDoc').value.trim();
+      const name = document.getElementById('newAdminName').value.trim();
+      const role = document.getElementById('newAdminRole').value;
+      const email = document.getElementById('newAdminEmail').value.trim();
+      const pin = document.getElementById('newAdminPin').value.trim();
+
+      let circleScope = [];
+      if (role === 'Administrador') {
+        circleScope = ['Todos los Círculos'];
+      } else {
+        document.querySelectorAll('input[name="adminCircleScopeCheck"]:checked').forEach(cb => {
+          circleScope.push(cb.value);
+        });
+        if (circleScope.length === 0) {
+          window.showToast("Círculos Requeridos", "Seleccione al menos un círculo para este administrador.", "error");
+          return;
+        }
+      }
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+
+      const newAdmin = {
+        id: 'ADM-' + Date.now(),
+        doc,
+        name,
+        email,
+        pin,
+        role,
+        circleScope,
+        createdAt: new Date().toISOString()
+      };
+
+      window.adminUsers.push(newAdmin);
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Creó Usuario Administrativo',
+        details: `${name} (${role})`
+      }, beforeSnapshot);
+
+      window.saveDataToServer();
+      window.closeNewAdminModal();
+      window.renderAdminDirectory();
+      window.renderAuditLogs();
+      window.showToast("Administrador Creado", `${name} fue registrado con éxito.`, "success");
+    };
+
+    window.promptDeleteAdmin = function(adminId) {
+      if (!confirm("¿Revocar acceso administrativo a este usuario?")) return;
+      window.adminUsers = (window.adminUsers || []).filter(a => a.id !== adminId);
+      window.saveDataToServer();
+      window.renderAdminDirectory();
+      window.showToast("Acceso Revocado", "El usuario administrativo ha sido eliminado.", "info");
+    };
+
+    // Excel Importación
+    window.downloadExcelTemplate = function() {
+      const templateData = [
+        { DNI: "74839201", "NOMBRE Y APELLIDO": "Juan Pérez Silva", RANGO: "Rango 1", CIRCULO: "PRESENCIAL -- LIMA", CORREO: "juan@empresa.com", CELULAR: "+51987654321" },
+        { DNI: "82930491", "NOMBRE Y APELLIDO": "María Gómez Ruiz", RANGO: "Rango 2", CIRCULO: "VIRTUAL 1", CORREO: "maria@empresa.com", CELULAR: "+51912345678" }
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(templateData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Miembros");
+      XLSX.writeFile(wb, "Plantilla_Miembros_SoyEmbajador.xlsx");
+      window.showToast("Plantilla Descargada", "El archivo Excel de ejemplo se ha descargado.", "success");
+    };
+
+    window.openExcelImportModal = function() {
+      window.parsedExcelUsers = [];
+      document.getElementById('excelFileNameDisplay').innerText = "Haz clic para seleccionar tu archivo Excel";
+      document.getElementById('excelPreviewSection').classList.add('hidden');
+      document.getElementById('btnProcessExcelBatch').disabled = true;
+      window.populateCircleDropdowns();
+      const targetSelect = document.getElementById('excelImportTargetCircle');
+      if (targetSelect) targetSelect.value = '';
+      window.showModal('excelImportModal');
+    };
+
+    window.closeExcelImportModal = function() {
+      window.hideModal('excelImportModal');
+    };
+
+    window.handleExcelFileSelected = function(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      document.getElementById('excelFileNameDisplay').innerText = `📄 ${file.name}`;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+          
+          let mappedUsers = [];
+          let headerMap = {};
+          let isHeaderRow = true;
+
+          rawRows.forEach((row, idx) => {
+            if (!row || row.length === 0) return;
+            const cols = row.map(c => String(c !== undefined && c !== null ? c : '').trim());
+            const hasData = cols.some(c => c !== '');
+            if (!hasData) return;
+
+            if (isHeaderRow && (idx === 0 || idx === 1)) {
+              let matchedColsCount = 0;
+              cols.forEach((colText, colIdx) => {
+                const lower = colText.toLowerCase();
+                if (lower.includes('dni') || lower.includes('documento') || lower.includes('n°')) {
+                  headerMap.dni = colIdx; matchedColsCount++;
+                } else if (lower.includes('nombre') || lower.includes('apellido') || lower.includes('colaborador')) {
+                  headerMap.name = colIdx; matchedColsCount++;
+                } else if (lower.includes('rango') || lower.includes('cargo') || lower.includes('nivel')) {
+                  headerMap.job = colIdx;
+                } else if (lower.includes('circulo') || lower.includes('círculo') || lower.includes('grupo') || lower.includes('sucursal')) {
+                  headerMap.circle = colIdx;
+                } else if (lower.includes('correo') || lower.includes('email') || lower.includes('mail')) {
+                  headerMap.email = colIdx;
+                } else if (lower.includes('celular') || lower.includes('telefono') || lower.includes('teléfono') || lower.includes('whatsapp')) {
+                  headerMap.phone = colIdx;
+                }
+              });
+
+              if (matchedColsCount >= 1) {
+                isHeaderRow = false;
+                return;
+              }
+            }
+
+            let doc = '';
+            let name = '';
+            let job = '';
+            let circle = '';
+            let email = '';
+            let phone = '';
+
+            if (headerMap.dni !== undefined || headerMap.name !== undefined || headerMap.job !== undefined || headerMap.circle !== undefined || headerMap.email !== undefined || headerMap.phone !== undefined) {
+              doc = headerMap.dni !== undefined ? (cols[headerMap.dni] || '') : '';
+              name = headerMap.name !== undefined ? (cols[headerMap.name] || '') : '';
+              job = headerMap.job !== undefined ? (cols[headerMap.job] || '') : '';
+              circle = headerMap.circle !== undefined ? (cols[headerMap.circle] || '') : '';
+              email = headerMap.email !== undefined ? (cols[headerMap.email] || '') : '';
+              phone = headerMap.phone !== undefined ? (cols[headerMap.phone] || '') : '';
+            } else {
+              doc = cols[0] || '';
+              name = cols[1] || '';
+              job = cols[2] || '';
+              circle = cols[3] || '';
+              email = cols[4] || '';
+              phone = cols[5] || '';
+            }
+
+            const isHeaderLikeRow = doc.toLowerCase() === 'dni' && (name.toLowerCase() === 'nombre y apellido' || name.toLowerCase() === 'nombre');
+            const hasAnyMemberData = doc || name || job || circle || email || phone;
+
+            if (hasAnyMemberData && !isHeaderLikeRow) {
+              mappedUsers.push({
+                doc: doc,
+                name: name,
+                job: job,
+                circle: circle,
+                email: email,
+                phone: phone
+              });
+            }
+          });
+
+          window.parsedExcelUsers = mappedUsers;
+
+          const tbody = document.getElementById('excelPreviewTableBody');
+          tbody.innerHTML = '';
+          window.parsedExcelUsers.forEach((u, index) => {
+            const tr = document.createElement('tr');
+            const dash = '<span class="text-slate-300">—</span>';
+            tr.innerHTML = `
+              <td class="p-2 font-mono">${index + 1}</td>
+              <td class="p-2 font-mono font-bold text-emerald-800">${u.doc || dash}</td>
+              <td class="p-2 font-bold">${u.name || dash}</td>
+              <td class="p-2">${u.job || dash}</td>
+              <td class="p-2">${u.circle ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">${u.circle}</span>` : dash}</td>
+              <td class="p-2 text-slate-500">${u.email || dash}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+
+          document.getElementById('excelParsedCount').innerText = `${window.parsedExcelUsers.length} filas válidas encontradas`;
+          document.getElementById('excelPreviewSection').classList.remove('hidden');
+          window.updateExcelImportButtonState();
+          window.showToast("Archivo Cargado", `Se leyeron ${window.parsedExcelUsers.length} registros correctamente.`, "success");
+        } catch (err) {
+          window.showToast("Error de Lectura", "No se pudo procesar el archivo Excel. Verifique el formato.", "error");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    };
+
+    window.processExcelBatchImport = function() {
+      if (!window.parsedExcelUsers || window.parsedExcelUsers.length === 0) return;
+
+      const targetSelect = document.getElementById('excelImportTargetCircle');
+      const targetCircle = targetSelect ? targetSelect.value : '';
+
+      if (!targetCircle || targetCircle === '__ADD_NEW__' || !window.availableCircles.includes(targetCircle)) {
+        window.showToast("Falta el Círculo Destino", "Selecciona a qué círculo pertenecen los nuevos miembros antes de importar.", "error");
+        return;
+      }
+
+      const beforeSnapshot = window.captureAuditSnapshot();
+      let addedCount = 0;
+      let updatedCount = 0;
+
+      window.parsedExcelUsers.forEach(u => {
+        const cleanDoc = String(u.doc || '').trim();
+        const existing = cleanDoc
+          ? (window.circleUsers || []).find(existingUser => String(existingUser.doc || '').trim().toLowerCase() === cleanDoc.toLowerCase())
+          : null;
+
+        if (existing) {
+          let touched = false;
+          if (!String(existing.name || '').trim() && u.name) { existing.name = u.name; touched = true; }
+          if (!String(existing.job || '').trim() && u.job) { existing.job = u.job; touched = true; }
+          if (!String(existing.email || '').trim() && u.email) { existing.email = u.email; touched = true; }
+          if (!String(existing.phone || '').trim() && u.phone) { existing.phone = u.phone; touched = true; }
+          if (touched) updatedCount++;
+        } else {
+          window.circleUsers.push({
+            id: 'USR-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+            doc: u.doc,
+            name: u.name,
+            circle: targetCircle,
+            job: u.job,
+            email: u.email,
+            phone: u.phone,
+            createdAt: new Date().toISOString()
+          });
+          addedCount++;
+        }
+      });
+
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Importación Masiva Excel',
+        details: `Se importaron ${addedCount} nuevos miembros a '${targetCircle}' y se completaron ${updatedCount} registros existentes (soy.embajador)`
+      }, beforeSnapshot);
+
+      window.saveDataToServer();
+      window.closeExcelImportModal();
+      window.populateCircleDropdowns();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.showToast("Importación Exitosa", `Se añadieron ${addedCount} miembros nuevos a '${targetCircle}' y se completaron ${updatedCount} registros existentes.`, "success");
+    };
+
+    window.exportAuditToCSV = function() {
+      const logs = window.auditLogEntries || [];
+      let csv = "Acción,Autor,Detalles,Fecha\n";
+      logs.forEach(l => {
+        csv += `"${l.action}","${l.author}","${l.details}","${l.time}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = "Bitacora_Auditoria_SoyEmbajador.csv";
+      a.click();
+      window.showToast("Exportación Lista", "El archivo CSV de auditoría se ha descargado.", "success");
+    };
+
+    // Public QR
+    window.checkPublicQrSession = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const qrMeetId = urlParams.get('asistencia_qr');
+      if (!qrMeetId) return;
+
+      const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(qrMeetId));
+      const publicScreen = document.getElementById('publicQrAttendanceScreen');
+      const authScreen = document.getElementById('authScreen');
+      const embajadorAuth = document.getElementById('embajadorPortalAuthScreen');
+
+      if (authScreen) authScreen.style.display = 'none';
+      if (embajadorAuth) embajadorAuth.style.display = 'none';
+
+      if (!meeting) {
+        if (publicScreen) {
+          window.showModal('publicQrAttendanceScreen');
+          document.getElementById('qrPublicMeetTitle').innerText = "Reunión No Encontrada";
+          document.getElementById('qrPublicStatusAlert').className = "mt-4 p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200";
+          document.getElementById('qrPublicStatusText').innerText = "El enlace QR es inválido.";
+          document.getElementById('publicQrForm').classList.add('hidden');
+        }
+        return;
+      }
+
+      window.currentMeetingQrData = meeting;
+
+      if (publicScreen) {
+        window.showModal('publicQrAttendanceScreen');
+
+        document.getElementById('qrPublicMeetTitle').innerText = meeting.title;
+        document.getElementById('qrPublicMeetCircle').innerText = `🏷️ Círculo: ${meeting.circle}`;
+        document.getElementById('qrPublicMeetDate').innerText = `📅 ${meeting.date} - ${meeting.time}`;
+
+        const now = Date.now();
+        const endMs = meeting.qrEndTimestamp || (now + 3 * 60000);
+
+        if (now > endMs) {
+          document.getElementById('qrPublicStatusAlert').className = "mt-4 p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200";
+          document.getElementById('qrPublicStatusText').innerText = "❌ El tiempo límite para este QR ha expirado.";
+          document.getElementById('publicQrForm').classList.add('hidden');
+          document.getElementById('qrPublicCountdownBox').classList.add('hidden');
+        } else {
+          const updatePublicCountdown = () => {
+            const currentNow = Date.now();
+            const remain = endMs - currentNow;
+            if (remain <= 0) {
+              document.getElementById('qrPublicTimerDisplay').innerText = "00:00 (Expirado)";
+              document.getElementById('qrPublicStatusAlert').className = "mt-4 p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200";
+              document.getElementById('qrPublicStatusText').innerText = "❌ El tiempo límite para marcar asistencia ha finalizado.";
+              document.getElementById('publicQrForm').classList.add('hidden');
+              return;
+            }
+            const m = Math.floor(remain / 60000);
+            const s = Math.floor((remain % 60000) / 1000);
+            document.getElementById('qrPublicTimerDisplay').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+          };
+          updatePublicCountdown();
+          setInterval(updatePublicCountdown, 1000);
+        }
+      }
+    };
+
+    window.handlePublicAttendanceSubmit = async function(event) {
+      if (event) event.preventDefault();
+      const inputDni = (document.getElementById('publicDniInput')?.value || '').trim();
+      const meeting = window.currentMeetingQrData;
+
+      if (!inputDni || !meeting) {
+        alert("Por favor ingresa tu DNI.");
+        return;
+      }
+
+      const targetMeeting = (window.circleMeetings || []).find(m => String(m.id) === String(meeting.id)) || meeting;
+
+      const now = Date.now();
+      if (targetMeeting.qrEndTimestamp && now > targetMeeting.qrEndTimestamp) {
+        alert("❌ El tiempo para registrar asistencia con este QR ha expirado.");
+        return;
+      }
+
+      const searchDni = inputDni.toLowerCase();
+      const member = (window.circleUsers || []).find(u => 
+        String(u.doc || '').trim().toLowerCase() === searchDni
+      );
+
+      if (!member) {
+        alert(`❌ El DNI / Documento '${inputDni}' no se encuentra registrado en el Directorio de Miembros.`);
+        return;
+      }
+
+      if (String(member.circle || '').trim().toLowerCase() !== String(targetMeeting.circle || '').trim().toLowerCase()) {
+        alert(`⚠️ El miembro ${member.name} pertenece a '${member.circle}', pero esta reunión es para '${targetMeeting.circle}'.`);
+        return;
+      }
+
+      if (!targetMeeting.attendees) targetMeeting.attendees = [];
+      let att = targetMeeting.attendees.find(a => a.userId === member.id);
+
+      const nowObj = new Date();
+      const timeMarked = `${String(nowObj.getHours()).padStart(2, '0')}:${String(nowObj.getMinutes()).padStart(2, '0')}:${String(nowObj.getSeconds()).padStart(2, '0')}`;
+
+      if (att) {
+        att.status = "Asistió";
+        att.note = `✅ Marcado vía QR (${timeMarked})`;
+      } else {
+        targetMeeting.attendees.push({
+          userId: member.id,
+          status: "Asistió",
+          note: `✅ Marcado vía QR (${timeMarked})`
+        });
+      }
+
+      await window.saveDataToServer();
+
+      const form = document.getElementById('publicQrForm');
+      if (form) form.classList.add('hidden');
+      const countBox = document.getElementById('qrPublicCountdownBox');
+      if (countBox) countBox.classList.add('hidden');
+      const alertBox = document.getElementById('qrPublicStatusAlert');
+      if (alertBox) alertBox.classList.add('hidden');
+
+      const successBox = document.getElementById('publicSuccessBox');
+      if (successBox) {
+        document.getElementById('publicSuccessMemberName').innerText = `¡Hola, ${member.name}!`;
+        document.getElementById('publicSuccessDetails').innerText = `Tu estado ha cambiado a "Asistió" en '${targetMeeting.circle}'.`;
+        document.getElementById('publicSuccessTimestamp').innerText = `DNI: ${member.doc} · Registrado a las ${timeMarked}`;
+        successBox.classList.remove('hidden');
+      }
+    };
+
+    // Inicialización
+    document.addEventListener("DOMContentLoaded", async function() {
+      // Primero esperamos la carga inicial de Firebase.
+      // Esto es especialmente importante en el enlace público del QR, porque
+      // checkPublicQrSession() necesita que circleMeetings y circleUsers ya
+      // estén cargados antes de buscar la reunión y el DNI.
+      const firebaseResult = await window.syncWithBackend();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const isQr = urlParams.has('asistencia_qr');
+      if (isQr) {
+        if (!firebaseResult?.success) {
+          const publicScreen = document.getElementById('publicQrAttendanceScreen');
+          if (publicScreen) {
+            window.showModal('publicQrAttendanceScreen');
+            document.getElementById('qrPublicMeetTitle').innerText = 'No se pudo conectar';
+            document.getElementById('qrPublicMeetCircle').innerText = 'Firebase';
+            document.getElementById('qrPublicMeetDate').innerText = '';
+            document.getElementById('qrPublicStatusAlert').className = 'mt-4 p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200';
+            document.getElementById('qrPublicStatusText').innerText = '❌ No se pudo cargar la información de la reunión. Intenta nuevamente.';
+            document.getElementById('publicQrForm').classList.add('hidden');
+            document.getElementById('qrPublicCountdownBox').classList.add('hidden');
+          }
+          return;
+        }
+
+        // Firebase ya terminó de cargar: ahora sí buscamos la reunión del QR.
+        window.checkPublicQrSession();
+        return;
+      }
+
+      const isEmbajador = window.location.pathname.includes('embajador') || window.location.search.includes('embajador');
+
+      if (isEmbajador) {
+        const adminAuth = document.getElementById('authScreen');
+        if (adminAuth) adminAuth.style.display = 'none';
+
+        const embajadorAuth = document.getElementById('embajadorPortalAuthScreen');
+        if (embajadorAuth) embajadorAuth.style.display = 'flex';
+      } else {
+        const embajadorAuth = document.getElementById('embajadorPortalAuthScreen');
+        if (embajadorAuth) embajadorAuth.style.display = 'none';
+
+        const adminAuth = document.getElementById('authScreen');
+        if (adminAuth) adminAuth.style.display = 'flex';
+      }
+    });
+  </script>
+</body>
+</html>
