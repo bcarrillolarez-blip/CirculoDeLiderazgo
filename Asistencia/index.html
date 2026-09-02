@@ -33,6 +33,192 @@
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
     .fade-enter { animation: fadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ============================================================
+       ESTETICA AZUL + NEGRO — SOLO VISUAL
+       No modifica la lógica ni las funciones JavaScript.
+    ============================================================ */
+
+    html, body {
+      background: #07182d !important;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 12% 8%, rgba(30, 90, 160, .20), transparent 30%),
+        radial-gradient(circle at 88% 18%, rgba(17, 57, 104, .18), transparent 28%),
+        linear-gradient(135deg, #050d19 0%, #07182d 48%, #0b2340 100%) !important;
+      color: #e5edf7 !important;
+      min-height: 100vh;
+    }
+
+    /* Mantener la pantalla de acceso elegante, pero dentro de la nueva paleta */
+    #authScreen {
+      background:
+        radial-gradient(circle at 50% 0%, rgba(34, 91, 153, .30), transparent 42%),
+        linear-gradient(135deg, #030914 0%, #07182d 55%, #0b2340 100%) !important;
+    }
+
+    #authScreen > div {
+      border-color: rgba(148, 163, 184, .18) !important;
+      box-shadow: 0 24px 70px rgba(0,0,0,.42) !important;
+    }
+
+    /* Contenedor principal */
+    #reportContainer {
+      max-width: 1400px !important;
+      padding-top: 28px !important;
+      padding-bottom: 40px !important;
+    }
+
+    /* Encabezado del integrante */
+    #reportContainer > div:first-child {
+      background: linear-gradient(110deg, #020817 0%, #071a32 52%, #10345b 100%) !important;
+      border: 1px solid rgba(96, 165, 250, .20);
+      box-shadow: 0 18px 45px rgba(0,0,0,.32) !important;
+      padding: 26px 30px !important;
+    }
+
+    #memberNameDisplay {
+      font-size: 1.65rem !important;
+      line-height: 1.15 !important;
+      letter-spacing: -.025em !important;
+      color: #ffffff !important;
+    }
+
+    #memberDniDisplay {
+      font-size: 1rem !important;
+      font-weight: 800 !important;
+      letter-spacing: .045em !important;
+      color: #dbeafe !important;
+    }
+
+    #memberCircleDisplay {
+      font-size: .82rem !important;
+      background: rgba(16, 185, 129, .20) !important;
+      color: #6ee7b7 !important;
+      border: 1px solid rgba(52, 211, 153, .18);
+    }
+
+    #memberJobDisplay {
+      background: rgba(255,255,255,.10) !important;
+      border: 1px solid rgba(255,255,255,.14);
+    }
+
+    /* Botón de salida */
+    #reportContainer > div:first-child button {
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 8px 20px rgba(0,0,0,.22) !important;
+    }
+
+    /* Tarjetas superiores */
+    #reportSummaryCards > div {
+      background: linear-gradient(145deg, #ffffff 0%, #eef5fc 100%) !important;
+      border-color: #c9d8e8 !important;
+      box-shadow: 0 10px 28px rgba(0,0,0,.16) !important;
+      min-height: 78px;
+    }
+
+    #reportSummaryCards > div:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 32px rgba(0,0,0,.22) !important;
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    /* Panel del reporte */
+    #reportContainer > div:nth-child(3) {
+      background: #f8fbff !important;
+      border: 1px solid #aebfd2 !important;
+      box-shadow: 0 18px 45px rgba(0,0,0,.22) !important;
+      border-radius: 18px !important;
+    }
+
+    /* Cabecera del panel */
+    #reportContainer > div:nth-child(3) > div:first-child {
+      background: linear-gradient(90deg, #07182d 0%, #0d2b4d 100%) !important;
+      border-bottom-color: rgba(148,163,184,.20) !important;
+      color: white !important;
+    }
+
+    #reportMonthTitle {
+      color: #ffffff !important;
+      font-size: 1.12rem !important;
+    }
+
+    #reportContainer > div:nth-child(3) > div:first-child p {
+      color: #a9bdd3 !important;
+    }
+
+    /* Botones de navegación del mes */
+    #reportContainer > div:nth-child(3) > div:first-child button {
+      background: rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.16) !important;
+      color: #dbeafe !important;
+    }
+
+    #reportContainer > div:nth-child(3) > div:first-child button:hover {
+      background: rgba(255,255,255,.16) !important;
+      color: #ffffff !important;
+    }
+
+    /* Tabla */
+    #monthlyReportTable {
+      background: #ffffff !important;
+      color: #172033 !important;
+    }
+
+    #monthlyReportTable thead th {
+      box-shadow: inset 0 -1px rgba(255,255,255,.10);
+    }
+
+    #monthlyReportTable tbody tr:hover td {
+      background: #eef6ff !important;
+    }
+
+    /* Primera columna: nombre + DNI mucho más visibles */
+    #monthlyReportTable tbody td:first-child {
+      min-width: 250px !important;
+      padding: 14px 16px !important;
+    }
+
+    #monthlyReportTable tbody td:first-child > div:first-child {
+      font-size: 15px !important;
+      line-height: 1.3 !important;
+      color: #07182d !important;
+      letter-spacing: -.01em !important;
+    }
+
+    #monthlyReportTable tbody td:first-child > div:nth-child(2) {
+      margin-top: 5px !important;
+      font-size: 12px !important;
+      font-weight: 800 !important;
+      color: #315a82 !important;
+      letter-spacing: .035em !important;
+    }
+
+    /* Círculo */
+    #monthlyReportTable tbody td:nth-child(2) {
+      min-width: 165px !important;
+    }
+
+    /* Separadores de tabla un poco más marcados */
+    #monthlyReportTable tbody td {
+      border-color: #dbe5ef !important;
+    }
+
+    /* Scrollbar acorde a la estética */
+    ::-webkit-scrollbar-track {
+      background: #dbe5ef !important;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #315a82 !important;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #163b63 !important;
+    }
+
   </style>
 </head>
 
