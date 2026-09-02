@@ -862,8 +862,20 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       <form id="newMeetingForm" onsubmit="window.handleCreateMeeting(event)" class="space-y-4 text-xs">
         <div>
+          <label class="block font-semibold text-slate-700 mb-1">Tipo de Reunión <span class="text-rose-500">*</span></label>
+          <select id="newMeetType" required onchange="window.handleMeetingTypeChange(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white">
+            <option value="CIRCULO DE LIDERAZGO">🟨 CÍRCULO DE LIDERAZGO</option>
+            <option value="HEALTH">🟩 HEALTH</option>
+            <option value="MENTORIA">🟪 MENTORÍA</option>
+            <option value="MASTERCLASS">🔵 MASTERCLASS</option>
+            <option value="ANUNCIOS CORPORATIVOS">🟣 ANUNCIOS CORPORATIVOS</option>
+            <option value="ORDINARIA">Reunión ordinaria</option>
+          </select>
+          <p class="mt-1 text-[10px] text-slate-400">ANUNCIOS CORPORATIVOS puede programarse cualquier día y hora y entra al grupo BONO.</p>
+        </div>
+        <div>
           <label class="block font-semibold text-slate-700 mb-1">Título de la Reunión <span class="text-rose-500">*</span></label>
-          <input type="text" id="newMeetTitle" required placeholder="Ej. Sesión Ordinaria" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+          <input type="text" id="newMeetTitle" required placeholder="Título" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -872,7 +884,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
               <label class="font-semibold text-slate-700">Círculo Convocado <span class="text-rose-500">*</span></label>
               <button type="button" id="btnAddNewCircleMeeting" onclick="window.openAddCircleModal('newMeetCircle')" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 cursor-pointer">➕ Añadir</button>
             </div>
-            <select id="newMeetCircle" required onchange="window.handleCircleSelectChange(this)" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white"></select>
+            <select id="newMeetCircle" required onchange="window.handleCircleSelectChange(this); window.handleMeetingTypeChange(document.getElementById('newMeetType'))" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white"></select>
           </div>
 
           <div>
@@ -1155,13 +1167,12 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     window.ADMIN_MASTER_PIN = "2026";
 
     window.availableCircles = [
-      "PRESENCIAL -- LIMA",
-      "PRESENCIAL -- CUSCO",
-      "PRESENCIAL -- AREQUIPA",
-      "VIRTUAL 1",
-      "VIRTUAL 2",
-      "VIRTUAL 3",
-      "VIRTUAL 4"
+      "PRESENCIAL - LIMA 1",
+      "PRESENCIAL - LIMA 2",
+      "PRESENCIAL - LIMA 3",
+      "PRESENCIAL - LIMA 4",
+      "VIRTUAL 4",
+      "VIRTUAL 1-2-3"
     ];
 
     window.circleUsers = [];
@@ -1621,59 +1632,105 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       window.updateGlobalStats();
     };
 
-    // Auto-generación de reuniones fijas
-    window.ensureRecurringMeetingsForMonth = function(year, month) {
-      if (!window.availableCircles || window.availableCircles.length === 0) return;
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      let created = false;
+    function formatTime12(time) {
+      const parts = String(time || '').split(':');
+      const h = parseInt(parts[0] || '0', 10);
+      const m = parts[1] || '00';
+      const suffix = h >= 12 ? 'PM' : 'AM';
+      const hh = h % 12 || 12;
+      return `${hh}:${m} ${suffix}`;
+    }
 
-      const counters = { 'ANUNCIOS CORPORATIVOS': 0, 'MES': 0, 'HEALTH': 0 };
-
-      for (let day = 1; day <= daysInMonth; day++) {
-        const dateObj = new Date(year, month, day);
-        const weekDay = dateObj.getDay();
-        const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-        let type = null;
-        if (weekDay === 0) type = 'ANUNCIOS CORPORATIVOS';
-        else if (weekDay === 3) type = 'MES';
-        else if (weekDay === 4) type = 'HEALTH';
-
-        if (type) {
-          counters[type]++;
-          const sessionTitle = `Sesión ${counters[type]}`;
-
-          window.availableCircles.forEach(circle => {
-            const meetingId = `AUTO-${type.replace(/\s+/g, '')}-${dayStr}-${circle.replace(/\s+/g, '')}`;
-
-            if ((window.deletedMeetingIds || []).includes(meetingId)) return;
-
-            const exists = (window.circleMeetings || []).some(m => String(m.id) === meetingId || (m.date === dayStr && m.circle === circle && m.type === type));
-
-            if (!exists) {
-              window.circleMeetings.push({
-                id: meetingId,
-                title: sessionTitle,
-                type: type,
-                circle: circle,
-                host: 'Sistema',
-                date: dayStr,
-                time: '09:00',
-                location: 'Virtual / Presencial',
-                qrActive: false,
-                attendees: []
-              });
-              created = true;
-            }
-          });
-        }
-      }
-
-      if (created) {
-        window.saveDataToServer();
-      }
+    // HORARIOS OFICIALES DE CÍRCULO DE LIDERAZGO.
+    // Solo estas combinaciones de círculo + día + hora son válidas.
+    window.circleLeadershipSchedule = {
+      "PRESENCIAL - LIMA 1": { day: 3, time: "14:00", endTime: "16:00" },
+      "PRESENCIAL - LIMA 2": { day: 3, time: "16:00", endTime: "18:00" },
+      "PRESENCIAL - LIMA 3": { day: 5, time: "14:00", endTime: "16:00" },
+      "PRESENCIAL - LIMA 4": { day: 5, time: "16:00", endTime: "18:00" },
+      "VIRTUAL 4": { day: 2, time: "16:00", endTime: "18:00" },
+      "VIRTUAL 1-2-3": { day: 3, time: "16:00", endTime: "18:00" }
     };
 
+    function getLeadershipSchedule(circle) {
+      const key = String(circle || '').trim().toUpperCase();
+      return Object.entries(window.circleLeadershipSchedule || {}).find(([name]) => name.toUpperCase() === key)?.[1] || null;
+    }
+
+    function isOfficialLeadershipMeeting(m) {
+      const schedule = getLeadershipSchedule(m?.circle);
+      if (!schedule || !m?.date) return false;
+      const dateObj = new Date(String(m.date).slice(0, 10) + 'T12:00:00');
+      if (dateObj.getDay() !== schedule.day) return false;
+
+      const type = String(m.type || '').trim().toUpperCase();
+      const title = String(m.title || '').trim().toUpperCase();
+      const time = String(m.time || '').slice(0, 5);
+      const endTime = String(m.endTime || '').slice(0, 5);
+
+      // Acepta tanto los registros nuevos como los antiguos (MES/Sesión N),
+      // pero solo si coinciden EXACTAMENTE con el horario oficial del círculo.
+      const legacyLeadership = type === 'MES' || type === 'CIRCULO DE LIDERAZGO' || /^SESIÓN\s+\d+$/i.test(title) || /^SESION\s+\d+$/i.test(title);
+      if (!legacyLeadership) return false;
+      if (time && time !== schedule.time) return false;
+      if (endTime && endTime !== schedule.endTime) return false;
+      return true;
+    }
+
+    // HORARIOS FIJOS DE LAS SESIONES RECURRENTES.
+    const FIXED_SESSION_SCHEDULES = {
+      HEALTH: { day: 4, time: '19:00', endTime: '20:00', title: 'HEALTH' },
+      MENTORIA: { day: 0, time: '20:00', endTime: '21:00', title: 'MENTORÍA' },
+      MASTERCLASS: { day: 5, time: '19:00', endTime: '20:00', title: 'MASTERCLASS' }
+    };
+
+    function legacySundayAnnouncementIsMentoria(m) {
+      const type=String(m?.type||'').trim().toUpperCase(), title=String(m?.title||'').trim().toUpperCase(), id=String(m?.id||'').toUpperCase();
+      return type==='ANUNCIOS CORPORATIVOS' && (id.startsWith('AUTO-ANUNCIOS') || /^SESIÓN\s+\d+$/i.test(title) || /^SESION\s+\d+$/i.test(title));
+    }
+    function normalizeMeetingCategory(m) {
+      if(legacySundayAnnouncementIsMentoria(m)) return 'MENTORIA';
+      const type=String(m?.type||'').trim().toUpperCase(), title=String(m?.title||'').trim().toUpperCase();
+      if(type==='CIRCULO DE LIDERAZGO'||type==='MES'||title.includes('CIRCULO DE LIDERAZGO')||title==='MES'||/^SESIÓN\s+\d+$/i.test(title)||/^SESION\s+\d+$/i.test(title)) return 'CIRCULO DE LIDERAZGO';
+      if(type==='MENTORIA'||type==='MENTORÍA'||title==='MENTORIA'||title==='MENTORÍA') return 'MENTORIA';
+      if(type==='MASTERCLASS'||title.includes('MASTERCLASS')) return 'MASTERCLASS';
+      if(type==='HEALTH'||title==='HEALTH') return 'HEALTH';
+      if(type==='ANUNCIOS CORPORATIVOS'||title==='ANUNCIOS CORPORATIVOS') return 'ANUNCIOS CORPORATIVOS';
+      return type||'ORDINARIA';
+    }
+
+    // Auto-generación: CÍRCULO DE LIDERAZGO, HEALTH y MENTORÍA.
+    // ANUNCIOS CORPORATIVOS nunca se genera automáticamente. MASTERCLASS conserva su botón mensual.
+    window.ensureRecurringMeetingsForMonth=function(year,month){
+      const circles=Array.isArray(window.availableCircles)?window.availableCircles:[];
+      const daysInMonth=new Date(year,month+1,0).getDate(); let created=false;
+      circles.forEach(circle=>{
+        const leadership=getLeadershipSchedule(circle);
+        if(leadership){
+          for(let day=1;day<=daysInMonth;day++){
+            const d=new Date(year,month,day); if(d.getDay()!==leadership.day)continue;
+            const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const id=`AUTO-CIRCULO-LIDERAZGO-${circle.replace(/[^a-zA-Z0-9]+/g,'-')}-${dateStr}`;
+            const exists=(window.circleMeetings||[]).some(m=>String(m.id||'')===id||(isOfficialLeadershipMeeting(m)&&String(m.circle||'').trim().toUpperCase()===String(circle).trim().toUpperCase()&&String(m.date||'').slice(0,10)===dateStr));
+            if(!exists&&!(window.deletedMeetingIds||[]).includes(id)){window.circleMeetings.push({id,title:`${formatTime12(leadership.time)} - ${formatTime12(leadership.endTime)}`,type:'CIRCULO DE LIDERAZGO',circle,host:'Sistema',date:dateStr,time:leadership.time,endTime:leadership.endTime,location:circle.startsWith('PRESENCIAL')?'Presencial':'Virtual',automatic:true,attendees:[]});created=true;}
+          }
+        }
+      });
+      // HEALTH y MENTORÍA son FIJOS y se generan automáticamente para cada círculo existente.
+      circles.forEach(circle=>{
+        ['HEALTH','MENTORIA'].forEach(type=>{
+          const cfg=FIXED_SESSION_SCHEDULES[type];
+          for(let day=1;day<=daysInMonth;day++){
+            const d=new Date(year,month,day); if(d.getDay()!==cfg.day)continue;
+            const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+            const id=`AUTO-${type}-${dateStr}-${circle.replace(/[^a-zA-Z0-9]+/g,'-')}`;
+            const exists=(window.circleMeetings||[]).some(m=>String(m.id||'')===id||(String(m.circle||'').trim().toUpperCase()===String(circle).trim().toUpperCase()&&String(m.date||'').slice(0,10)===dateStr&&normalizeMeetingCategory(m)===type));
+            if(!exists&&!(window.deletedMeetingIds||[]).includes(id)){window.circleMeetings.push({id,title:cfg.title,type,circle,host:'Sistema',date:dateStr,time:cfg.time,endTime:cfg.endTime,location:'Virtual / Presencial',automatic:true,attendees:[]});created=true;}
+          }
+        });
+      });
+      if(created&&typeof window.saveDataToServer==='function')window.saveDataToServer();
+    };
     // Calendario
     window.renderCalendar = function() {
       const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
@@ -1703,7 +1760,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       const today = new Date();
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const typeCounters = { 'ANUNCIOS CORPORATIVOS': 0, 'MES': 0, 'HEALTH': 0, 'MASTERCLASS': 0 };
+      const typeCounters = { 'CIRCULO DE LIDERAZGO': 0, 'ANUNCIOS CORPORATIVOS': 0, 'HEALTH': 0, 'MASTERCLASS': 0 };
 
       for (let day = 1; day <= daysInMonth; day++) {
         const cell = document.createElement('div');
@@ -1713,28 +1770,33 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         const isToday = dayStr === todayStr;
 
         const dayMeetings = (window.circleMeetings || []).filter(m => {
-          const matchDate = m.date === dayStr;
+          const matchDate = String(m.date || '').slice(0, 10) === dayStr;
           const inScope = allowedCircles.includes(m.circle);
           const matchCircle = !filterCircle || m.circle === filterCircle;
-          return matchDate && inScope && matchCircle;
+          if (!matchDate || !inScope || !matchCircle) return false;
+
+          const type = String(m.type || '').trim().toUpperCase();
+          const title = String(m.title || '').trim().toUpperCase();
+
+          // Para Círculo de Liderazgo solo mostramos los horarios oficiales.
+          // Esto oculta de la interfaz las antiguas Sesión 1/2/3, MES u otras
+          // reuniones de liderazgo que tengan un día/hora que ya no corresponde.
+          if (type === 'MES' || type === 'CIRCULO DE LIDERAZGO' || /^SESIÓN\s+\d+$/i.test(title) || /^SESION\s+\d+$/i.test(title)) {
+            return isOfficialLeadershipMeeting(m);
+          }
+
+          // El resto de categorías existentes (Health, anuncios, Masterclass,
+          // etc.) permanece intacto.
+          return true;
         });
 
         let category = null;
-        if (weekDay === 0) {
-          category = { name: 'ANUNCIOS CORPORATIVOS', badge: 'bg-purple-100 text-purple-800 border-purple-200', cell: 'bg-purple-50/40' };
-        } else if (weekDay === 3) {
-          category = { name: 'MES', badge: 'bg-yellow-100 text-yellow-800 border-yellow-200', cell: 'bg-yellow-50/40' };
-        } else if (weekDay === 4) {
-          category = { name: 'HEALTH', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', cell: 'bg-emerald-50/40' };
-        } else if (weekDay === 5 && dayMeetings.some(m => {
-          const type = String(m.type || '').trim().toUpperCase();
-          const title = String(m.title || '').trim().toUpperCase();
-          return type === 'MASTERCLASS' || title === 'MASTERCLASS' || title.includes('MASTERCLASS');
-        })) {
-          category = { name: 'MASTERCLASS', badge: 'bg-blue-100 text-blue-800 border-blue-200', cell: 'bg-blue-50/30' };
-        }
-
-        if (category) typeCounters[category.name]++;
+        const cat=dayMeetings.length?normalizeMeetingCategory(dayMeetings[0]):null;
+        if(cat==='CIRCULO DE LIDERAZGO')category={name:'CÍRCULO DE LIDERAZGO',badge:'bg-yellow-100 text-yellow-800 border-yellow-200',cell:'bg-yellow-50/40'};
+        else if(cat==='HEALTH')category={name:'HEALTH',badge:'bg-emerald-100 text-emerald-800 border-emerald-200',cell:'bg-emerald-50/40'};
+        else if(cat==='MENTORIA')category={name:'MENTORÍA',badge:'bg-purple-100 text-purple-800 border-purple-200',cell:'bg-purple-50/40'};
+        else if(cat==='MASTERCLASS')category={name:'MASTERCLASS',badge:'bg-blue-100 text-blue-800 border-blue-200',cell:'bg-blue-50/30'};
+        else if(cat==='ANUNCIOS CORPORATIVOS')category={name:'ANUNCIOS CORPORATIVOS',badge:'bg-purple-100 text-purple-800 border-purple-200',cell:'bg-purple-50/40'};
 
         const dayClass = category ? category.cell : 'bg-white';
         cell.className = `min-h-[95px] ${dayClass} p-2 text-xs flex flex-col justify-between hover:bg-slate-50 ${isToday ? 'ring-2 ring-brand-500' : ''}`;
@@ -1742,33 +1804,24 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         let headerHtml = `
           <div class="flex items-center justify-between gap-1">
             <span class="font-bold ${isToday ? 'text-brand-600' : 'text-slate-700'}">${day}</span>
-            ${category ? `<span class="px-1.5 py-0.5 rounded-md border ${category.badge} text-[8px] font-bold truncate max-w-[145px]" title="${category.name}">${category.name}</span>` : ''}
           </div>`;
 
         let meetingsHtml = `<div class="space-y-1 mt-1">`;
         dayMeetings.forEach(m => {
-          const titleUpper = String(m.title || '').trim().toUpperCase();
-          const typeUpper = String(m.type || '').trim().toUpperCase();
-          let meetingClass = 'bg-indigo-50 border-indigo-200 text-indigo-900';
+          const meetingCategory=normalizeMeetingCategory(m);
+          let meetingClass='bg-indigo-50 border-indigo-200 text-indigo-900';
+          if(meetingCategory==='CIRCULO DE LIDERAZGO')meetingClass='bg-yellow-100 border-yellow-300 text-yellow-800';
+          else if(meetingCategory==='HEALTH')meetingClass='bg-emerald-100 border-emerald-300 text-emerald-800';
+          else if(meetingCategory==='MENTORIA')meetingClass='bg-purple-100 border-purple-300 text-purple-800';
+          else if(meetingCategory==='ANUNCIOS CORPORATIVOS')meetingClass='bg-purple-100 border-purple-300 text-purple-800';
+          else if(meetingCategory==='MASTERCLASS')meetingClass='bg-blue-100 border-blue-300 text-blue-800';
 
-          if (weekDay === 3 || typeUpper === 'MES' || titleUpper === 'MES') {
-            meetingClass = 'bg-yellow-100 border-yellow-300 text-yellow-800';
-          } else if (weekDay === 4 || typeUpper === 'HEALTH' || titleUpper === 'HEALTH') {
-            meetingClass = 'bg-emerald-100 border-emerald-300 text-emerald-800';
-          } else if (weekDay === 0 || typeUpper === 'ANUNCIOS CORPORATIVOS' || titleUpper === 'ANUNCIOS CORPORATIVOS') {
-            meetingClass = 'bg-purple-100 border-purple-300 text-purple-800';
-          } else if (weekDay === 5 || typeUpper === 'MASTERCLASS' || titleUpper === 'MASTERCLASS' || titleUpper.includes('MASTERCLASS')) {
-            meetingClass = 'bg-blue-100 border-blue-300 text-blue-800';
-          }
+          let displayTime=`${formatTime12(m.time)} - ${formatTime12(m.endTime || m.time)}`;
 
-          let displayTitle = m.title;
-          if (!displayTitle || ['MES', 'HEALTH', 'MASTERCLASS', 'ANUNCIOS CORPORATIVOS'].includes(displayTitle.toUpperCase())) {
-            displayTitle = category ? `Sesión ${typeCounters[category.name]}` : 'Sesión';
-          }
-
-          meetingsHtml += `
-            <div onclick="window.openMeetingModal('${m.id}')" class="p-1 rounded border ${meetingClass} cursor-pointer text-[10px] truncate hover:brightness-95" title="${displayTitle} (${m.circle})">
-              <strong>${displayTitle}</strong> ${m.circle ? `(${m.circle})` : ''}
+          meetingsHtml+=`
+            <div onclick="window.openMeetingModal('${m.id}')" class="p-1.5 rounded border ${meetingClass} cursor-pointer text-[10px] hover:brightness-95" title="${meetingCategory} · ${displayTime}">
+              <strong class="block truncate">${meetingCategory==='CIRCULO DE LIDERAZGO'?'CÍRCULO DE LIDERAZGO':meetingCategory==='MENTORIA'?'MENTORÍA':meetingCategory}</strong>
+              <span class="block truncate mt-0.5">${displayTime}</span>
             </div>`;
         });
         meetingsHtml += `</div>`;
@@ -1786,22 +1839,14 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     }
 
     function reportCategoryForDate(dateStr) {
-      const d = new Date(`${dateStr}T12:00:00`);
-      const w = d.getDay();
-      if (w === 3) return 'MES';
-      if (w === 4) return 'HEALTH';
-      if (w === 5) return 'MASTERCLASS';
-      if (w === 0) return 'ANUNCIOS CORPORATIVOS';
+      const w=new Date(`${dateStr}T12:00:00`).getDay();
+      if(w===4)return 'HEALTH';
+      if(w===0)return 'MENTORIA';
       return null;
     }
-
     function reportTypeOfMeeting(m) {
-      const type = String(m?.type || '').trim().toUpperCase();
-      const title = String(m?.title || '').trim().toUpperCase();
-      if (type === 'MASTERCLASS' || title.includes('MASTERCLASS')) return 'MASTERCLASS';
-      if (type === 'MES' || title === 'MES') return 'MES';
-      if (type === 'HEALTH' || title === 'HEALTH') return 'HEALTH';
-      if (type === 'ANUNCIOS CORPORATIVOS' || title === 'ANUNCIOS CORPORATIVOS') return 'ANUNCIOS CORPORATIVOS';
+      const normalized=normalizeMeetingCategory(m);
+      if(['CIRCULO DE LIDERAZGO','HEALTH','MENTORIA','MASTERCLASS','ANUNCIOS CORPORATIVOS'].includes(normalized))return normalized;
       return reportCategoryForDate(m?.date);
     }
 
@@ -1827,79 +1872,49 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       return { symbol: 'F', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'No asistió' };
     }
 
-    function getReportMeetingFor(user, dateStr, category) {
-      const meetings = (window.circleMeetings || []).filter(m =>
-        m.date === dateStr && m.circle === user.circle && reportTypeOfMeeting(m) === category
+    function getReportMeetingFor(user,dateStr,category){
+      const meetings=(window.circleMeetings||[]).filter(m=>
+        String(m.date||'').slice(0,10)===dateStr &&
+        m.circle===user.circle &&
+        reportTypeOfMeeting(m)===category &&
+        (category!=='CIRCULO DE LIDERAZGO' || isOfficialLeadershipMeeting(m))
       );
-      if (meetings.length) return meetings[0];
-
-      const circleKey = user.circle ? user.circle.replace(/\s+/g, '') : '';
-      const isDeleted = (window.deletedMeetingIds || []).some(deletedId => {
-        return deletedId === `${dateStr}-${user.circle}` ||
-               deletedId === `${dateStr}-${circleKey}` ||
-               deletedId.includes(`${dateStr}-${circleKey}`) ||
-               deletedId.includes(`${dateStr}-${user.circle}`);
-      });
-
-      if (isDeleted) return null;
-
-      if (category === 'MASTERCLASS') return null;
-      return { 
-        id: `virtual-${category}-${dateStr}-${user.circle}`, 
-        date: dateStr, 
-        circle: user.circle, 
-        type: category, 
-        title: category, 
-        virtual: true, 
-        attendees: [] 
-      };
+      return meetings.length ? meetings[0] : null;
     }
 
-    function getReportSessionsForMonth(year, monthIndex, user) {
-      const days = new Date(year, monthIndex + 1, 0).getDate();
-      const out = [];
-      for (let day = 1; day <= days; day++) {
-        const dateStr = reportDateKey(year, monthIndex, day);
-        const category = reportCategoryForDate(dateStr);
-        if (!category) continue;
-        const meeting = getReportMeetingFor(user, dateStr, category);
-        if (!meeting) continue;
-        out.push({ date: dateStr, category, meeting });
-      }
-      return out.sort((a,b) => {
-        const order = { MES:0, HEALTH:1, MASTERCLASS:2, 'ANUNCIOS CORPORATIVOS':3 };
-        return order[a.category]-order[b.category] || a.date.localeCompare(b.date);
-      });
+    function reportSessionKey(s) {
+      return `${s.date}|${s.category}|${String(s.meeting?.id || s.date)}`;
     }
 
-    function getReportJClasses(user, sessions) {
-      const result = new Map();
-      const mesJs = [];
-      const sharedJs = [];
+    function getReportSessionsForMonth(year,monthIndex,user){
+      // SOLO fechas/sesiones que están cargadas en el calendario de ESTE círculo.
+      // Nada de días futuros o sesiones inventadas por el reporte.
+      const order={'CIRCULO DE LIDERAZGO':0,HEALTH:1,MENTORIA:2,MASTERCLASS:3,'ANUNCIOS CORPORATIVOS':4};
+      const sessions=(window.circleMeetings||[])
+        .filter(m=>{
+          const d=String(m.date||'').slice(0,10);
+          return d.startsWith(`${year}-${String(monthIndex+1).padStart(2,'0')}-`) && m.circle===user.circle;
+        })
+        .map(meeting=>({date:String(meeting.date||'').slice(0,10),category:reportTypeOfMeeting(meeting),meeting}))
+        .filter(s=>['CIRCULO DE LIDERAZGO','HEALTH','MENTORIA','MASTERCLASS','ANUNCIOS CORPORATIVOS'].includes(s.category))
+        .filter(s=>s.category!=='CIRCULO DE LIDERAZGO' || isOfficialLeadershipMeeting(s.meeting));
 
-      sessions.forEach(s => {
-        const rec = (s.meeting?.attendees || []).find(a => a.userId === user.id);
-        if (!rec || !reportIsJustified(rec)) return;
+      // Una sesión por ID. Esto permite múltiples ANUNCIOS el mismo día sin mezclarlos.
+      const unique=new Map();
+      sessions.forEach(s=>unique.set(reportSessionKey(s),s));
+      return Array.from(unique.values()).sort((a,b)=>
+        a.date.localeCompare(b.date)||
+        order[a.category]-order[b.category]||
+        String(a.meeting.time||'').localeCompare(String(b.meeting.time||''))||
+        String(a.meeting.id||'').localeCompare(String(b.meeting.id||''))
+      );
+    }
 
-        if (s.category === 'MES') {
-          mesJs.push({s, rec});
-        } else if (['HEALTH', 'ANUNCIOS CORPORATIVOS', 'MASTERCLASS'].includes(s.category)) {
-          sharedJs.push({s, rec});
-        }
-      });
-
-      mesJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-      sharedJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-
-      mesJs.forEach((x, i) => {
-        result.set(x.s.date + '|' + x.s.category, i < 1 ? 'valid' : 'extra');
-      });
-
-      sharedJs.forEach((x, i) => {
-        result.set(x.s.date + '|' + x.s.category, i < 3 ? 'valid' : 'extra');
-      });
-
-      return result;
+    function getReportJClasses(user,sessions){
+      const result=new Map(),leadershipJs=[],bonoJs=[];
+      sessions.forEach(s=>{const rec=(s.meeting?.attendees||[]).find(a=>a.userId===user.id);if(!rec||!reportIsJustified(rec))return;if(s.category==='CIRCULO DE LIDERAZGO')leadershipJs.push({s,rec});else if(['HEALTH','MENTORIA','MASTERCLASS','ANUNCIOS CORPORATIVOS'].includes(s.category))bonoJs.push({s,rec});});
+      const sorter=(a,b)=>a.s.date.localeCompare(b.s.date)||String(a.s.meeting.time||'').localeCompare(String(b.s.meeting.time||''));leadershipJs.sort(sorter);bonoJs.sort(sorter);
+      leadershipJs.forEach((x,i)=>result.set(reportSessionKey(x.s),i<1?'valid':'extra'));bonoJs.forEach((x,i)=>result.set(reportSessionKey(x.s),i<3?'valid':'extra'));return result;
     }
 
     function getReportPersonStats(user, sessions) {
@@ -1915,7 +1930,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         scheduled++;
         if (!rec) { absent++; return; }
         if (reportIsJustified(rec)) {
-          const jc = jClasses.get(s.date + '|' + s.category) || 'extra';
+          const jc = jClasses.get(reportSessionKey(s)) || 'extra';
           if (jc === 'valid') { attended++; justifiedValid++; }
           else { absent++; justifiedExtra++; }
         } else if (reportIsAttendance(rec)) attended++;
@@ -1971,11 +1986,11 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       const allSessionsMap = new Map();
       users.forEach(u => getReportSessionsForMonth(year, month, u).forEach(s => {
-        const key = `${s.date}|${s.category}`;
+        const key = reportSessionKey(s);
         allSessionsMap.set(key, s);
       }));
       const allSessions = Array.from(allSessionsMap.values()).sort((a,b)=>{
-        const order={MES:0,HEALTH:1,MASTERCLASS:2,'ANUNCIOS CORPORATIVOS':3};
+        const order={'CIRCULO DE LIDERAZGO':0,HEALTH:1,MENTORIA:2,MASTERCLASS:3,'ANUNCIOS CORPORATIVOS':4};
         return order[a.category]-order[b.category] || a.date.localeCompare(b.date);
       });
 
@@ -1997,13 +2012,12 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       ].map(c=>`<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3"><div class="w-9 h-9 rounded-lg ${c[4]} flex items-center justify-center">${c[0]}</div><div><p class="text-[10px] uppercase font-bold text-slate-400">${c[1]}</p><p class="text-xl font-extrabold ${c[3]}">${c[2]}</p></div></div>`).join('') +
       `<div class="col-span-2 lg:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-xs"><p class="text-[10px] uppercase font-bold text-slate-400">Asistencia general</p><p class="text-2xl font-extrabold text-brand-700">${generalPct}%</p><p class="text-[10px] text-slate-400">Pendientes: ${totalPending}</p></div>`;
 
-      const byCat = {MES:[],HEALTH:[],MASTERCLASS:[],'ANUNCIOS CORPORATIVOS':[]};
+      const byCat = {'CIRCULO DE LIDERAZGO':[],HEALTH:[],MENTORIA:[],MASTERCLASS:[],'ANUNCIOS CORPORATIVOS':[]};
       allSessions.forEach(s=>byCat[s.category].push(s));
       const catStyle = {
-        MES:'bg-yellow-500 text-yellow-950', HEALTH:'bg-emerald-500 text-emerald-950',
-        MASTERCLASS:'bg-blue-600 text-white', 'ANUNCIOS CORPORATIVOS':'bg-purple-600 text-white'
+        'CIRCULO DE LIDERAZGO':'bg-yellow-500 text-yellow-950', HEALTH:'bg-emerald-500 text-emerald-950', MENTORIA:'bg-purple-500 text-white', MASTERCLASS:'bg-blue-600 text-white', 'ANUNCIOS CORPORATIVOS':'bg-purple-700 text-white'
       };
-      const catLabel = {MES:'MES',HEALTH:'HEALTH',MASTERCLASS:'MASTERCLASS','ANUNCIOS CORPORATIVOS':'ANUNCIOS CORPORATIVOS'};
+      const catLabel = {'CIRCULO DE LIDERAZGO':'CÍRCULO DE LIDERAZGO',HEALTH:'HEALTH',MENTORIA:'MENTORÍA',MASTERCLASS:'MASTERCLASS','ANUNCIOS CORPORATIVOS':'ANUNCIOS CORPORATIVOS'};
       let top = `<tr class="text-[10px] uppercase"><th rowspan="2" class="sticky left-0 z-20 bg-slate-900 text-white px-3 py-2 min-w-[210px] text-left">Usuario</th><th rowspan="2" class="sticky left-[210px] z-20 bg-slate-900 text-white px-2 py-2 min-w-[150px] text-left">Círculo</th>`;
       Object.keys(byCat).forEach(cat=>{ if(byCat[cat].length) top += `<th colspan="${byCat[cat].length}" class="px-2 py-2 border-l border-white/20 ${catStyle[cat]}">${catLabel[cat]}</th>`; });
       top += `<th colspan="4" rowspan="1" class="px-2 py-2 bg-slate-900 text-white border-l">RESUMEN</th></tr>`;
@@ -2020,12 +2034,12 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       body.innerHTML = '';
       userStats.forEach(({u,stats})=>{
         const rowSessions = getReportSessionsForMonth(year, month, u);
-        const byKey = new Map(rowSessions.map(s=>[`${s.date}|${s.category}`,s]));
+        const byKey = new Map(rowSessions.map(s=>[reportSessionKey(s),s]));
         let cells = '';
         allSessions.forEach(s=>{
-          const own = byKey.get(`${s.date}|${s.category}`);
+          const own = byKey.get(reportSessionKey(s));
           let rec = own ? (own.meeting.attendees || []).find(a=>a.userId===u.id) : null;
-          let jc = rec && reportIsJustified(rec) ? (stats.jClasses.get(`${s.date}|${s.category}`)||'extra') : null;
+          let jc = rec && reportIsJustified(rec) ? (stats.jClasses.get(reportSessionKey(s))||'extra') : null;
           
           const sessionDate = new Date(`${s.date}T23:59:59`);
           const occurred = sessionDate <= new Date();
@@ -2040,8 +2054,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
             const st = reportStatusFor(rec,jc);
             let title = st.title;
             if (reportIsJustified(rec)) {
-              const bucket = s.category === 'MES' ? 'MES · máximo 1 J' : 'HEALTH + ANUNCIOS + MASTERCLASS · máximo 3 J';
-              const validCount = Array.from(stats.jClasses.entries()).filter(([key, value]) => value === 'valid' && (s.category === 'MES' ? key.endsWith('|MES') : ['HEALTH','MASTERCLASS','ANUNCIOS CORPORATIVOS'].some(c => key.endsWith('|' + c)))).length;
+              const bucket = s.category === 'CIRCULO DE LIDERAZGO' ? 'CÍRCULO DE LIDERAZGO · máximo 1 J' : 'HEALTH + MENTORÍA + MASTERCLASS + ANUNCIOS CORPORATIVOS · máximo 3 J';
+              const validCount = Array.from(stats.jClasses.entries()).filter(([key, value]) => value === 'valid' && key.split('|')[1] === s.category).length;
               title += ` · ${bucket} · ${jc === 'valid' ? validCount : 'excedente'}`;
             }
             cells += `<td class="px-2 py-2 border-l border-slate-100" title="${title}">${reportBadge(st.symbol,st.cls)}</td>`;
@@ -2398,85 +2412,31 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     // Programar Reunión
-    window.openNewMeetingModal = function() {
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('newMeetTitle').value = '';
-      document.getElementById('newMeetDate').value = today;
-      document.getElementById('newMeetTime').value = '09:00';
-      document.getElementById('newMeetLocation').value = 'Sala Magna / Enlace Virtual';
-      if (window.currentSessionUser) {
-        document.getElementById('newMeetHost').value = window.currentSessionUser.name;
-      }
-      window.populateCircleDropdowns();
-      window.showModal('newMeetingModal');
+    window.handleMeetingTypeChange=function(select){
+      const type=String(select?.value||'').toUpperCase(),titleEl=document.getElementById('newMeetTitle'),timeEl=document.getElementById('newMeetTime'),circleEl=document.getElementById('newMeetCircle');if(!titleEl||!timeEl)return;
+      const leadership=getLeadershipSchedule(circleEl?.value||''),fixed=FIXED_SESSION_SCHEDULES[type];
+      if(type==='CIRCULO DE LIDERAZGO'&&leadership){titleEl.value=`${formatTime12(leadership.time)} - ${formatTime12(leadership.endTime)}`;titleEl.readOnly=true;timeEl.value=leadership.time;}
+      else if(fixed){titleEl.value=fixed.title;titleEl.readOnly=true;timeEl.value=fixed.time;}
+      else if(type==='ANUNCIOS CORPORATIVOS'){titleEl.value='ANUNCIOS CORPORATIVOS';titleEl.readOnly=true;}
+      else{titleEl.value='';titleEl.readOnly=false;}
     };
-
-    window.closeNewMeetingModal = function() {
-      window.hideModal('newMeetingModal');
+    window.openNewMeetingModal=function(){
+      const today=new Date().toISOString().split('T')[0];document.getElementById('newMeetTitle').value='';document.getElementById('newMeetTitle').readOnly=false;document.getElementById('newMeetDate').value=today;document.getElementById('newMeetTime').value='09:00';document.getElementById('newMeetLocation').value='Sala Magna / Enlace Virtual';
+      const typeEl=document.getElementById('newMeetType');if(typeEl)typeEl.value='CIRCULO DE LIDERAZGO';if(window.currentSessionUser)document.getElementById('newMeetHost').value=window.currentSessionUser.name;window.populateCircleDropdowns();setTimeout(()=>window.handleMeetingTypeChange(document.getElementById('newMeetType')),0);window.showModal('newMeetingModal');
     };
-
-    window.handleCreateMeeting = function(event) {
-      if (event) event.preventDefault();
-      const title = document.getElementById('newMeetTitle').value.trim();
-      const circle = document.getElementById('newMeetCircle').value;
-      const host = document.getElementById('newMeetHost').value.trim();
-      const date = document.getElementById('newMeetDate').value;
-      const time = document.getElementById('newMeetTime').value;
-      const location = document.getElementById('newMeetLocation').value.trim();
-
-      if (!title || !circle || !date) {
-        window.showToast("Campos Requeridos", "Complete todos los campos obligatorios.", "error");
-        return;
-      }
-
-      const circleKey = circle.replace(/\s+/g, '');
-      window.deletedMeetingIds = (window.deletedMeetingIds || []).filter(k => 
-        k !== `${date}-${circle}` && 
-        k !== `${date}-${circleKey}` && 
-        !k.includes(`${date}-${circleKey}`) && 
-        !k.includes(`${date}-${circle}`)
-      );
-
-      const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
-      let autoType = 'ORDINARIA';
-      if (dayOfWeek === 0) autoType = 'ANUNCIOS CORPORATIVOS';
-      else if (dayOfWeek === 3) autoType = 'MES';
-      else if (dayOfWeek === 4) autoType = 'HEALTH';
-      else if (dayOfWeek === 5) autoType = 'MASTERCLASS';
-
-      const newMeet = {
-        id: 'MEET-' + Date.now(),
-        title,
-        type: autoType,
-        circle,
-        host,
-        date,
-        time,
-        location,
-        qrActive: false,
-        qrStartTimestamp: null,
-        qrEndTimestamp: null,
-        qrStartTime: null,
-        qrEndTime: null,
-        attendees: []
-      };
-
-      const beforeSnapshot = window.captureAuditSnapshot();
-
-      window.circleMeetings.push(newMeet);
-      window.logAuditAction({
-        author: window.currentSessionUser?.name || 'Administrador',
-        action: 'Programó Reunión',
-        details: `${title} (${circle}) para el ${date}`
-      }, beforeSnapshot);
-
-      window.saveDataToServer();
-      window.closeNewMeetingModal();
-      window.renderCalendar();
-      window.renderMonthlyReport();
-      window.renderUserDirectory();
-      window.renderAuditLogs();
-      window.showToast("Reunión Programada", `Se programó '${title}' para ${date}.`, "success");
+    window.closeNewMeetingModal=function(){window.hideModal('newMeetingModal');};
+    window.handleCreateMeeting=async function(event){
+      if(event)event.preventDefault();
+      const requestedType=String(document.getElementById('newMeetType')?.value||'ORDINARIA').trim().toUpperCase(),titleInput=document.getElementById('newMeetTitle').value.trim(),circle=document.getElementById('newMeetCircle').value,host=document.getElementById('newMeetHost').value.trim(),date=document.getElementById('newMeetDate').value,selectedTime=document.getElementById('newMeetTime').value,location=document.getElementById('newMeetLocation').value.trim();
+      if(!circle||!date){window.showToast('Campos Requeridos','Complete todos los campos obligatorios.','error');return;}
+      const days=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];let autoType=requestedType,finalTitle=titleInput,finalTime=selectedTime,endTime='';const leadership=getLeadershipSchedule(circle);
+      if(requestedType==='CIRCULO DE LIDERAZGO'){if(!leadership){window.showToast('Horario no configurado','El círculo seleccionado no tiene un horario oficial.','error');return;}const dow=new Date(`${date}T12:00:00`).getDay();if(dow!==leadership.day){window.showToast('Fecha no válida',`Este círculo se reúne el ${days[leadership.day]}.`,'error');return;}finalTitle=`${formatTime12(leadership.time)} - ${formatTime12(leadership.endTime)}`;finalTime=leadership.time;endTime=leadership.endTime;}
+      else if(['HEALTH','MENTORIA','MASTERCLASS'].includes(requestedType)){const cfg=FIXED_SESSION_SCHEDULES[requestedType],dow=new Date(`${date}T12:00:00`).getDay();if(dow!==cfg.day){window.showToast('Fecha no válida',`${cfg.title} está programado para el ${days[cfg.day]}.`,'error');return;}finalTitle=cfg.title;finalTime=cfg.time;endTime=cfg.endTime;}
+      else if(requestedType==='ANUNCIOS CORPORATIVOS'){finalTitle='ANUNCIOS CORPORATIVOS';autoType='ANUNCIOS CORPORATIVOS';}
+      if(!finalTitle){window.showToast('Campos Requeridos','Complete el título de la reunión.','error');return;}
+      const circleKey=circle.replace(/\s+/g,'');window.deletedMeetingIds=(window.deletedMeetingIds||[]).filter(k=>k!==`${date}-${circle}`&&k!==`${date}-${circleKey}`&&!k.includes(`${date}-${circleKey}`)&&!k.includes(`${date}-${circle}`));
+      const newMeet={id:'MEET-'+Date.now(),title:finalTitle,type:autoType,circle,host,date,time:finalTime,endTime,location,qrActive:false,qrStartTimestamp:null,qrEndTimestamp:null,qrStartTime:null,qrEndTime:null,attendees:[]};
+      const beforeSnapshot=window.captureAuditSnapshot();window.circleMeetings.push(newMeet);window.logAuditAction({author:window.currentSessionUser?.name||'Administrador',action:'Programó Reunión',details:`${finalTitle} (${autoType}) · ${circle} · ${date} ${finalTime}`},beforeSnapshot);await window.saveDataToServer();window.closeNewMeetingModal();window.renderCalendar();window.renderMonthlyReport();window.renderUserDirectory();window.renderAuditLogs();window.showToast('Reunión Programada',`Se programó '${finalTitle}' para ${date} a las ${formatTime12(finalTime)}.`,'success');
     };
 
     // Masterclass del mes
@@ -2522,7 +2482,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           circle: targetCircle,
           host: window.currentSessionUser?.name || 'Administrador',
           date: dateStr,
-          time: '09:00',
+          time: '19:00',
+          endTime: '20:00',
           location: 'Sala Magna / Enlace Virtual',
           qrActive: false,
           qrStartTimestamp: null,
