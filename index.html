@@ -3395,62 +3395,62 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       reader.readAsArrayBuffer(file);
     };
 
-    window.processExcelBatchImport = function() {
-      if (!window.parsedExcelUsers || window.parsedExcelUsers.length === 0) return;
+    window.processExcelBatchImport = async function() {
+  if (!window.parsedExcelUsers || window.parsedExcelUsers.length === 0) return;
 
-      const targetSelect = document.getElementById('excelImportTargetCircle');
-      const targetCircle = targetSelect ? targetSelect.value : '';
+  const targetSelect = document.getElementById('excelImportTargetCircle');
+  const targetCircle = targetSelect ? targetSelect.value : '';
 
-      if (!targetCircle || targetCircle === '__ADD_NEW__' || !window.availableCircles.includes(targetCircle)) {
-        window.showToast("Falta el Círculo Destino", "Selecciona a qué círculo pertenecen los nuevos miembros antes de importar.", "error");
-        return;
-      }
+  if (!targetCircle || targetCircle === '__ADD_NEW__' || !window.availableCircles.includes(targetCircle)) {
+    window.showToast("Falta el Círculo Destino", "Selecciona a qué círculo pertenecen los nuevos miembros antes de importar.", "error");
+    return;
+  }
 
-      const beforeSnapshot = window.captureAuditSnapshot();
-      let addedCount = 0;
-      let updatedCount = 0;
+  const btn = document.getElementById('btnProcessExcelBatch');
+  if (btn) { btn.disabled = true; btn.innerText = 'Guardando...'; }
 
-      window.parsedExcelUsers.forEach(u => {
-        const cleanDoc = String(u.doc || '').trim();
-        const existing = cleanDoc
-          ? (window.circleUsers || []).find(existingUser => String(existingUser.doc || '').trim().toLowerCase() === cleanDoc.toLowerCase())
-          : null;
+  const beforeSnapshot = window.captureAuditSnapshot();
+  const newUsers = window.parsedExcelUsers.map((u, i) => ({
+    id: 'USR-' + Date.now() + '-' + i + '-' + Math.floor(Math.random() * 1000000),
+    doc: String(u.doc || '').trim(),
+    name: String(u.name || '').trim(),
+    circle: targetCircle,
+    job: String(u.job || '').trim(),
+    email: String(u.email || '').trim(),
+    phone: String(u.phone || '').trim(),
+    createdAt: new Date().toISOString()
+  }));
 
-        if (existing) {
-          let touched = false;
-          if (!String(existing.name || '').trim() && u.name) { existing.name = u.name; touched = true; }
-          if (!String(existing.job || '').trim() && u.job) { existing.job = u.job; touched = true; }
-          if (!String(existing.email || '').trim() && u.email) { existing.email = u.email; touched = true; }
-          if (!String(existing.phone || '').trim() && u.phone) { existing.phone = u.phone; touched = true; }
-          if (touched) updatedCount++;
-        } else {
-          window.circleUsers.push({
-            id: 'USR-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
-            doc: u.doc,
-            name: u.name,
-            circle: targetCircle,
-            job: u.job,
-            email: u.email,
-            phone: u.phone,
-            createdAt: new Date().toISOString()
-          });
-          addedCount++;
-        }
-      });
+  try {
+    // Esta opción es EXCLUSIVAMENTE para altas nuevas: no compara DNI,
+    // no usa el círculo del Excel y no modifica registros existentes.
+    window.circleUsers = Array.isArray(window.circleUsers) ? window.circleUsers : [];
+    window.circleUsers.push(...newUsers);
 
-      window.logAuditAction({
-        author: window.currentSessionUser?.name || 'Administrador',
-        action: 'Importación Masiva Excel',
-        details: `Se importaron ${addedCount} nuevos miembros a '${targetCircle}' y se completaron ${updatedCount} registros existentes (soy.embajador)`
-      }, beforeSnapshot);
+    window.logAuditAction({
+      author: window.currentSessionUser?.name || 'Administrador',
+      action: 'Importación Masiva Excel',
+      details: `Se añadieron ${newUsers.length} nuevos miembros a '${targetCircle}'.`
+    }, beforeSnapshot);
 
-      window.saveDataToServer();
-      window.closeExcelImportModal();
-      window.populateCircleDropdowns();
-      window.renderUserDirectory();
-      window.renderAuditLogs();
-      window.showToast("Importación Exitosa", `Se añadieron ${addedCount} miembros nuevos a '${targetCircle}' y se completaron ${updatedCount} registros existentes.`, "success");
-    };
+    const result = await window.saveDataToServer();
+    if (!result || result.success !== true) {
+      throw new Error(result?.error || 'Firebase no confirmó el guardado.');
+    }
+
+    window.closeExcelImportModal();
+    window.populateCircleDropdowns();
+    window.renderUserDirectory();
+    window.renderAuditLogs();
+    window.showToast('Importación Exitosa', `Se añadieron ${newUsers.length} nuevos miembros a '${targetCircle}'.`, 'success');
+  } catch (error) {
+    console.error('Error en importación masiva:', error);
+    window.showToast('Error al guardar', error.message || 'No se pudieron guardar los nuevos miembros.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerText = 'Guardar en Base de Datos'; }
+    window.updateExcelImportButtonState();
+  }
+};
 
     window.exportAuditToCSV = function() {
       const logs = window.auditLogEntries || [];
