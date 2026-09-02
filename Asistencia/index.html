@@ -129,6 +129,7 @@
     window.circleUsers = [];
     window.circleMeetings = [];
     window.deletedMeetingIds = [];
+    window.availableCircles = [];
     window.currentUser = null;
     window.currentDate = new Date();
 
@@ -166,9 +167,35 @@
     function applyFirebaseData(data) {
       if (!data) return;
 
+      // IMPORTANTE:
+      // /Asistencia debe trabajar SOLO con los círculos que existen
+      // actualmente en la base principal. Si quedó un registro antiguo
+      // con el mismo DNI en un círculo eliminado, ese registro no debe
+      // ser utilizado.
+      const rawCircles = toArray(data.circles);
+      window.availableCircles = rawCircles
+        .map(c => {
+          if (typeof c === 'string') return c.trim();
+          if (c && typeof c === 'object') return String(c.name || c.circle || c.nombre || '').trim();
+          return '';
+        })
+        .filter(Boolean);
+
       window.circleUsers = toArray(data.users);
       window.circleMeetings = toArray(data.meetings);
       window.deletedMeetingIds = toArray(data.deletedMeetings);
+
+      const activeCircleKeys = new Set(
+        (window.availableCircles || [])
+          .map(c => String(c).trim().toLowerCase())
+          .filter(Boolean)
+      );
+
+      const isCurrentCircleUser = (u) => {
+        if (!u) return false;
+        const circle = String(u.circle || '').trim().toLowerCase();
+        return !!circle && activeCircleKeys.has(circle);
+      };
 
       if (window.currentUser) {
         const dniActual = String(
@@ -176,7 +203,9 @@
         ).trim().toLowerCase();
 
         const usuarioActualizado = (window.circleUsers || []).find(u =>
-          u && String(u.doc || u.dni || '').trim().toLowerCase() === dniActual
+          u &&
+          String(u.doc || u.dni || '').trim().toLowerCase() === dniActual &&
+          isCurrentCircleUser(u)
         );
 
         if (usuarioActualizado) {
@@ -275,9 +304,24 @@
         return;
       }
 
-      const user = (window.circleUsers || []).find(u =>
-        u && String(u.doc || u.dni || '').trim().toLowerCase() === dni
+      // Buscar por DNI SOLO dentro de usuarios cuyo círculo
+      // existe actualmente en la base principal.
+      const activeCircleKeys = new Set(
+        (window.availableCircles || [])
+          .map(c => String(c).trim().toLowerCase())
+          .filter(Boolean)
       );
+
+      const user = (window.circleUsers || []).find(u => {
+        if (!u) return false;
+
+        const userDni = String(u.doc || u.dni || '').trim().toLowerCase();
+        const userCircle = String(u.circle || '').trim().toLowerCase();
+
+        return userDni === dni &&
+               !!userCircle &&
+               activeCircleKeys.has(userCircle);
+      });
 
       if (user) {
         window.currentUser = user;

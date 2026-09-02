@@ -199,7 +199,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 (function(){
   const original=window.switchTab;
   if(typeof original!=="function") return;
-  const order=["tab-calendar","tab-report","tab-users","tab-admins","tab-audit"];
+  const order=["tab-calendar","tab-report","tab-zoom","tab-users","tab-admins","tab-audit"];
   window.switchTab=function(id){
     const target=document.getElementById(id);
     const current=document.querySelector(".tab-content:not(.hidden)");
@@ -379,6 +379,10 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19h16M6 17V7m4 10V4m4 13v-7m4 7V9"/></svg>
           <span>Reporte Mensual</span>
           <span class="ml-1 px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800 rounded-full font-bold" id="badge-report-month">—</span>
+        </button>
+
+        <button onclick="window.switchTab('tab-zoom')" id="btn-tab-zoom" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
+          <span>📊</span><span>Procesar Zoom</span>
         </button>
 
         <button onclick="window.switchTab('tab-users')" id="btn-tab-users" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
@@ -566,7 +570,84 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       </div>
     </div>
 
-    <!-- PESTAÑA 3: DIRECTORIO DE MIEMBROS -->
+    <!-- PESTAÑA 3: PROCESAR ASISTENCIA DE ZOOM -->
+    <div id="tab-zoom" class="tab-content hidden fade-enter space-y-5">
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">📊 Procesar Asistencia de Zoom</h2>
+            <p class="text-xs text-slate-500 mt-1">Carga la base oficial y el reporte de Zoom. Solo se marca asistencia si el correo coincide exactamente y los minutos acumulados son ≥ 10.</p>
+          </div>
+          <span class="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 text-[11px] font-bold">Validación automática</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-3">
+          <div class="lg:col-span-1 p-4 rounded-xl border border-indigo-200 bg-indigo-50/60">
+            <label class="block text-xs font-bold text-indigo-900 mb-1">Círculo destino <span class="text-rose-500">*</span></label>
+            <select id="zoomTargetCircle" class="w-full px-3 py-2 border border-indigo-300 rounded-lg bg-white text-xs font-semibold outline-none focus:ring-2 focus:ring-indigo-500"></select>
+            <p class="text-[10px] text-indigo-700 mt-2">Las asistencias y faltas se aplicarán únicamente al círculo seleccionado.</p>
+          </div>
+
+          <div class="lg:col-span-1 p-4 rounded-xl border border-emerald-200 bg-emerald-50/60">
+            <label class="block text-xs font-bold text-emerald-900 mb-1">Tipo de sesión <span class="text-rose-500">*</span></label>
+            <select id="zoomSessionType" onchange="window.handleZoomSessionTypeChange()" class="w-full px-3 py-2 border border-emerald-300 rounded-lg bg-white text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="">Seleccione...</option>
+              <option value="HEALTH">🟩 HEALTH</option>
+              <option value="ANUNCIOS CORPORATIVOS">🟣 ANUNCIOS CORPORATIVOS</option>
+            </select>
+            <p id="zoomSessionTypeHelp" class="text-[10px] text-emerald-700 mt-2">HEALTH utiliza la sesión fija del jueves. ANUNCIOS utiliza la fecha detectada del reporte.</p>
+          </div>
+
+          <div class="lg:col-span-1 p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+            <label class="block text-xs font-bold text-slate-700 mb-1">Base oficial</label>
+            <label for="zoomDatabaseFile" class="w-full px-3 py-2.5 border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-lg flex items-center justify-center cursor-pointer bg-white text-xs font-semibold text-slate-600">📋 Seleccionar base</label>
+            <input id="zoomDatabaseFile" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="window.handleZoomDatabaseFile(this)">
+            <p id="zoomDatabaseFileName" class="text-[10px] text-slate-400 mt-2 truncate">Ningún archivo seleccionado</p>
+          </div>
+
+          <div class="lg:col-span-1 p-4 rounded-xl border border-slate-200 bg-slate-50/70">
+            <label class="block text-xs font-bold text-slate-700 mb-1">Reporte de Zoom</label>
+            <label for="zoomReportFile" class="w-full px-3 py-2.5 border-2 border-dashed border-slate-300 hover:border-indigo-400 rounded-lg flex items-center justify-center cursor-pointer bg-white text-xs font-semibold text-slate-600">🎥 Seleccionar reporte</label>
+            <input id="zoomReportFile" type="file" accept=".xlsx,.xls,.csv" class="hidden" onchange="window.handleZoomReportFile(this)">
+            <p id="zoomReportFileName" class="text-[10px] text-slate-400 mt-2 truncate">Ningún archivo seleccionado</p>
+          </div>
+        </div>
+
+        <div id="zoomDetectedInfo" class="hidden mt-4 grid grid-cols-2 md:grid-cols-5 gap-2"></div>
+
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <div id="zoomProcessStatus" class="text-xs text-slate-500">Selecciona los archivos, círculo y tipo de sesión.</div>
+          <button id="btnProcessZoom" onclick="window.processZoomAttendance()" disabled class="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow-xs cursor-pointer">⚡ Filtrar y Aplicar Asistencia</button>
+        </div>
+      </div>
+
+      <div id="zoomResultsPanel" class="hidden bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Resultado del filtrado</h3>
+            <p id="zoomResultsSummary" class="text-[11px] text-slate-500"></p>
+          </div>
+          <span id="zoomResultsSession" class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200"></span>
+        </div>
+        <div class="overflow-auto max-h-[calc(100vh-430px)]">
+          <table class="w-full text-left text-[11px]">
+            <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200 sticky top-0">
+              <tr>
+                <th class="px-3 py-3">DNI</th>
+                <th class="px-4 py-3">Miembro</th>
+                <th class="px-4 py-3">Correo oficial</th>
+                <th class="px-4 py-3">Correo Zoom</th>
+                <th class="px-3 py-3 text-center">Minutos</th>
+                <th class="px-3 py-3 text-center">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="zoomResultsBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑA 4: DIRECTORIO DE MIEMBROS -->
     <div id="tab-users" class="tab-content hidden fade-enter space-y-4">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
         <div class="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1 max-w-xl">
@@ -1394,6 +1475,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       if (tabId === 'tab-calendar') window.renderCalendar();
       if (tabId === 'tab-report') window.renderMonthlyReport();
+      if (tabId === 'tab-zoom') window.prepareZoomModule();
       if (tabId === 'tab-users') window.renderUserDirectory();
       if (tabId === 'tab-admins') window.renderAdminDirectory();
       if (tabId === 'tab-audit') window.renderAuditLogs();
@@ -3395,62 +3477,472 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       reader.readAsArrayBuffer(file);
     };
 
-    window.processExcelBatchImport = async function() {
-  if (!window.parsedExcelUsers || window.parsedExcelUsers.length === 0) return;
+    window.processExcelBatchImport = function() {
+      if (!window.parsedExcelUsers || window.parsedExcelUsers.length === 0) return;
 
-  const targetSelect = document.getElementById('excelImportTargetCircle');
-  const targetCircle = targetSelect ? targetSelect.value : '';
+      const targetSelect = document.getElementById('excelImportTargetCircle');
+      const targetCircle = targetSelect ? targetSelect.value : '';
 
-  if (!targetCircle || targetCircle === '__ADD_NEW__' || !window.availableCircles.includes(targetCircle)) {
-    window.showToast("Falta el Círculo Destino", "Selecciona a qué círculo pertenecen los nuevos miembros antes de importar.", "error");
-    return;
-  }
+      if (!targetCircle || targetCircle === '__ADD_NEW__' || !window.availableCircles.includes(targetCircle)) {
+        window.showToast("Falta el Círculo Destino", "Selecciona a qué círculo pertenecen los nuevos miembros antes de importar.", "error");
+        return;
+      }
 
-  const btn = document.getElementById('btnProcessExcelBatch');
-  if (btn) { btn.disabled = true; btn.innerText = 'Guardando...'; }
+      const beforeSnapshot = window.captureAuditSnapshot();
+      let addedCount = 0;
+      let updatedCount = 0;
 
-  const beforeSnapshot = window.captureAuditSnapshot();
-  const newUsers = window.parsedExcelUsers.map((u, i) => ({
-    id: 'USR-' + Date.now() + '-' + i + '-' + Math.floor(Math.random() * 1000000),
-    doc: String(u.doc || '').trim(),
-    name: String(u.name || '').trim(),
-    circle: targetCircle,
-    job: String(u.job || '').trim(),
-    email: String(u.email || '').trim(),
-    phone: String(u.phone || '').trim(),
-    createdAt: new Date().toISOString()
-  }));
+      window.parsedExcelUsers.forEach(u => {
+        const cleanDoc = String(u.doc || '').trim();
+        const existing = cleanDoc
+          ? (window.circleUsers || []).find(existingUser => String(existingUser.doc || '').trim().toLowerCase() === cleanDoc.toLowerCase())
+          : null;
 
-  try {
-    // Esta opción es EXCLUSIVAMENTE para altas nuevas: no compara DNI,
-    // no usa el círculo del Excel y no modifica registros existentes.
-    window.circleUsers = Array.isArray(window.circleUsers) ? window.circleUsers : [];
-    window.circleUsers.push(...newUsers);
+        if (existing) {
+          let touched = false;
+          if (!String(existing.name || '').trim() && u.name) { existing.name = u.name; touched = true; }
+          if (!String(existing.job || '').trim() && u.job) { existing.job = u.job; touched = true; }
+          if (!String(existing.email || '').trim() && u.email) { existing.email = u.email; touched = true; }
+          if (!String(existing.phone || '').trim() && u.phone) { existing.phone = u.phone; touched = true; }
+          if (touched) updatedCount++;
+        } else {
+          window.circleUsers.push({
+            id: 'USR-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+            doc: u.doc,
+            name: u.name,
+            circle: targetCircle,
+            job: u.job,
+            email: u.email,
+            phone: u.phone,
+            createdAt: new Date().toISOString()
+          });
+          addedCount++;
+        }
+      });
 
-    window.logAuditAction({
-      author: window.currentSessionUser?.name || 'Administrador',
-      action: 'Importación Masiva Excel',
-      details: `Se añadieron ${newUsers.length} nuevos miembros a '${targetCircle}'.`
-    }, beforeSnapshot);
+      window.logAuditAction({
+        author: window.currentSessionUser?.name || 'Administrador',
+        action: 'Importación Masiva Excel',
+        details: `Se importaron ${addedCount} nuevos miembros a '${targetCircle}' y se completaron ${updatedCount} registros existentes (soy.embajador)`
+      }, beforeSnapshot);
 
-    const result = await window.saveDataToServer();
-    if (!result || result.success !== true) {
-      throw new Error(result?.error || 'Firebase no confirmó el guardado.');
+      window.saveDataToServer();
+      window.closeExcelImportModal();
+      window.populateCircleDropdowns();
+      window.renderUserDirectory();
+      window.renderAuditLogs();
+      window.showToast("Importación Exitosa", `Se añadieron ${addedCount} miembros nuevos a '${targetCircle}' y se completaron ${updatedCount} registros existentes.`, "success");
+    };
+
+    // ============================================================
+    // PROCESADOR DE ASISTENCIA DE ZOOM
+    // ============================================================
+    window.zoomDatabaseRows = [];
+    window.zoomReportRows = [];
+    window.zoomLastResult = null;
+
+    function zoomNormalizeHeader(value) {
+      return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
-    window.closeExcelImportModal();
-    window.populateCircleDropdowns();
-    window.renderUserDirectory();
-    window.renderAuditLogs();
-    window.showToast('Importación Exitosa', `Se añadieron ${newUsers.length} nuevos miembros a '${targetCircle}'.`, 'success');
-  } catch (error) {
-    console.error('Error en importación masiva:', error);
-    window.showToast('Error al guardar', error.message || 'No se pudieron guardar los nuevos miembros.', 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerText = 'Guardar en Base de Datos'; }
-    window.updateExcelImportButtonState();
-  }
-};
+    function zoomFindColumn(headers, aliases) {
+      const normalized = headers.map(h => zoomNormalizeHeader(h));
+      const wanted = aliases.map(zoomNormalizeHeader);
+      for (const alias of wanted) {
+        const idx = normalized.findIndex(h => h === alias);
+        if (idx >= 0) return headers[idx];
+      }
+      for (const alias of wanted) {
+        const idx = normalized.findIndex(h => h.includes(alias) || alias.includes(h));
+        if (idx >= 0) return headers[idx];
+      }
+      return null;
+    }
+
+    function zoomCleanEmail(value) {
+      return String(value ?? '').trim().toLowerCase();
+    }
+
+    function zoomCleanDni(value) {
+      if (value === null || value === undefined) return '';
+      const raw = String(value).trim();
+      return raw.replace(/\.0+$/, '').replace(/\s+/g, '');
+    }
+
+    function zoomParseMinutes(value) {
+      if (typeof value === 'number' && isFinite(value)) return Math.max(0, value);
+      const raw = String(value ?? '').trim().replace(',', '.');
+      if (!raw) return 0;
+      const n = Number(raw);
+      if (isFinite(n)) return Math.max(0, n);
+      const match = raw.match(/(\d+(?:\.\d+)?)\s*(?:min|minute|minutes)/i);
+      return match ? Math.max(0, Number(match[1])) : 0;
+    }
+
+    function zoomDateFromValue(value) {
+      if (value instanceof Date && !isNaN(value.getTime())) {
+        return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`;
+      }
+      if (typeof value === 'number' && isFinite(value)) {
+        const d = XLSX.SSF.parse_date_code(value);
+        if (d && d.y) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+      }
+      const raw = String(value ?? '').trim();
+      if (!raw) return '';
+      let m = raw.match(/^(\d{4})[-\/]?(\d{2})[-\/]?(\d{2})/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+      m = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if (m) return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+      return '';
+    }
+
+    function zoomExtractDateFromEntry(value) {
+      return zoomDateFromValue(value);
+    }
+
+    function zoomUpdateButtonState() {
+      const btn = document.getElementById('btnProcessZoom');
+      if (!btn) return;
+      const circle = document.getElementById('zoomTargetCircle')?.value || '';
+      const type = document.getElementById('zoomSessionType')?.value || '';
+      btn.disabled = !(circle && type && window.zoomDatabaseRows.length && window.zoomReportRows.length);
+    }
+
+    window.prepareZoomModule = function() {
+      const select = document.getElementById('zoomTargetCircle');
+      if (select) {
+        const current = select.value;
+        const allowed = window.getUserAllowedCircles(window.currentSessionUser);
+        select.innerHTML = '<option value="">Seleccione un círculo...</option>' + allowed.map(c => `<option value="${String(c).replace(/"/g,'&quot;')}">${c}</option>`).join('');
+        if (allowed.includes(current)) select.value = current;
+      }
+      zoomUpdateButtonState();
+    };
+
+    window.handleZoomSessionTypeChange = function() {
+      const type = document.getElementById('zoomSessionType')?.value || '';
+      const help = document.getElementById('zoomSessionTypeHelp');
+      if (help) help.innerText = type === 'HEALTH'
+        ? 'HEALTH utiliza la sesión fija del jueves correspondiente a la fecha detectada.'
+        : type === 'ANUNCIOS CORPORATIVOS'
+          ? 'ANUNCIOS CORPORATIVOS crea o utiliza la sesión exactamente en la fecha detectada del reporte.'
+          : 'HEALTH utiliza la sesión fija del jueves. ANUNCIOS utiliza la fecha detectada del reporte.';
+      zoomUpdateButtonState();
+    };
+
+    window.handleZoomDatabaseFile = function(input) {
+      const file = input?.files?.[0];
+      if (!file) return;
+      const label = document.getElementById('zoomDatabaseFileName');
+      if (label) label.innerText = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
+          if (!rows.length) throw new Error('La base oficial está vacía.');
+          const headers = Object.keys(rows[0]);
+          const dniCol = zoomFindColumn(headers, ['DNI','DOCUMENTO','N° DOCUMENTO','NUMERO DE DOCUMENTO']);
+          const nameCol = zoomFindColumn(headers, ['NOMBRE Y APELLIDO','NOMBRES Y APELLIDOS','NOMBRE COMPLETO','NOMBRE']);
+          const emailCol = zoomFindColumn(headers, ['CORREO','CORREO ELECTRONICO','EMAIL','E-MAIL']);
+          if (!emailCol) throw new Error('No encontré la columna CORREO en la base oficial.');
+          window.zoomDatabaseRows = rows.map(r => ({
+            dni: dniCol ? zoomCleanDni(r[dniCol]) : '',
+            name: nameCol ? String(r[nameCol] ?? '').trim() : '',
+            email: zoomCleanEmail(r[emailCol])
+          })).filter(r => r.email || r.dni || r.name);
+          window.showToast('Base oficial cargada', `Se leyeron ${window.zoomDatabaseRows.length} registros de la base oficial.`, 'success');
+          zoomRenderDetectedInfo();
+          zoomUpdateButtonState();
+        } catch (err) {
+          window.zoomDatabaseRows = [];
+          window.showToast('Error en base oficial', err.message || 'No se pudo leer la base.', 'error');
+          zoomUpdateButtonState();
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    };
+
+    window.handleZoomReportFile = function(input) {
+      const file = input?.files?.[0];
+      if (!file) return;
+      const label = document.getElementById('zoomReportFileName');
+      if (label) label.innerText = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const wb = XLSX.read(e.target.result, {type:'array', cellDates:true});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, {defval:'', raw:true});
+          if (!rows.length) throw new Error('El reporte de Zoom está vacío.');
+          const headers = Object.keys(rows[0]);
+          const emailCol = zoomFindColumn(headers, ['Correo electrónico','Correo','Email','E-mail']);
+          const nameCol = zoomFindColumn(headers, ['Nombre (nombre original)','Nombre','Nombre original']);
+          const entryCol = zoomFindColumn(headers, ['Hora de entrada','Entrada','Hora entrada']);
+          const durationCol = zoomFindColumn(headers, ['Duración (minutos)','Duracion (minutos)','Duración','Duracion','Minutos']);
+          if (!emailCol) throw new Error('No encontré la columna Correo electrónico en el reporte de Zoom.');
+          if (!durationCol) throw new Error('No encontré la columna Duración (minutos) en el reporte de Zoom.');
+          if (!entryCol) throw new Error('No encontré la columna Hora de entrada en el reporte de Zoom.');
+          window.zoomReportRows = rows.map(r => ({
+            email: zoomCleanEmail(r[emailCol]),
+            name: nameCol ? String(r[nameCol] ?? '').trim() : '',
+            entry: r[entryCol],
+            exit: r[zoomFindColumn(headers, ['Hora de salida','Salida','Hora salida']) || '__NO_EXIT__'],
+            minutes: zoomParseMinutes(r[durationCol])
+          })).filter(r => r.email || r.name || r.minutes > 0);
+          window.showToast('Reporte Zoom cargado', `Se leyeron ${window.zoomReportRows.length} registros del reporte.`, 'success');
+          zoomRenderDetectedInfo();
+          zoomUpdateButtonState();
+        } catch (err) {
+          window.zoomReportRows = [];
+          window.showToast('Error en reporte Zoom', err.message || 'No se pudo leer el reporte.', 'error');
+          zoomUpdateButtonState();
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    };
+
+    function zoomRenderDetectedInfo() {
+      const box = document.getElementById('zoomDetectedInfo');
+      if (!box) return;
+      const dates = [...new Set(window.zoomReportRows.map(r => zoomExtractDateFromEntry(r.entry)).filter(Boolean))];
+      if (!window.zoomDatabaseRows.length && !window.zoomReportRows.length) { box.classList.add('hidden'); return; }
+      box.classList.remove('hidden');
+      box.innerHTML = `
+        <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200"><div class="text-[10px] text-slate-500">Base oficial</div><div class="font-bold text-slate-800">${window.zoomDatabaseRows.length}</div></div>
+        <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200"><div class="text-[10px] text-slate-500">Registros Zoom</div><div class="font-bold text-slate-800">${window.zoomReportRows.length}</div></div>
+        <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200"><div class="text-[10px] text-slate-500">Correos Zoom</div><div class="font-bold text-slate-800">${new Set(window.zoomReportRows.map(r=>r.email).filter(Boolean)).size}</div></div>
+        <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200"><div class="text-[10px] text-slate-500">Fecha detectada</div><div class="font-bold text-slate-800">${dates.length === 1 ? dates[0] : (dates.length ? `${dates.length} fechas` : '—')}</div></div>
+        <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200"><div class="text-[10px] text-slate-500">Regla</div><div class="font-bold text-emerald-700">≥ 10 min + correo</div></div>`;
+    }
+
+    function zoomFindAppMember(baseRow, circle) {
+      const users = Array.isArray(window.circleUsers) ? window.circleUsers : [];
+      const target = String(circle || '').trim().toUpperCase();
+      const byDni = baseRow.dni ? users.find(u => String(u.doc || '').trim().replace(/\.0+$/,'') === baseRow.dni && String(u.circle || '').trim().toUpperCase() === target) : null;
+      if (byDni) return byDni;
+      const email = zoomCleanEmail(baseRow.email);
+      return email ? users.find(u => zoomCleanEmail(u.email) === email && String(u.circle || '').trim().toUpperCase() === target) : null;
+    }
+
+    function zoomGetReportDate() {
+      const dates = [...new Set(window.zoomReportRows.map(r => zoomExtractDateFromEntry(r.entry)).filter(Boolean))];
+      return dates.length === 1 ? dates[0] : '';
+    }
+
+    function zoomGetOrCreateMeeting(circle, type, dateStr) {
+      const normalizedType = type === 'ANUNCIOS CORPORATIVOS' ? 'ANUNCIOS CORPORATIVOS' : 'HEALTH';
+      if (normalizedType === 'HEALTH') {
+        const d = new Date(`${dateStr}T12:00:00`);
+        if (d.getDay() !== 4) throw new Error(`La fecha ${dateStr} no es jueves. HEALTH solo utiliza sus sesiones fijas de los jueves.`);
+        const cfg = FIXED_SESSION_SCHEDULES.HEALTH;
+        let meeting = (window.circleMeetings || []).find(m => String(m.circle||'').trim().toUpperCase() === String(circle).trim().toUpperCase() && String(m.date||'').slice(0,10) === dateStr && normalizeMeetingCategory(m) === 'HEALTH');
+        if (!meeting) {
+          meeting = {id:`AUTO-HEALTH-${dateStr}-${String(circle).replace(/[^a-zA-Z0-9]+/g,'-')}`,title:cfg.title,type:'HEALTH',circle,host:'Sistema',date:dateStr,time:cfg.time,endTime:cfg.endTime,location:'Virtual / Presencial',automatic:true,attendees:[]};
+          window.circleMeetings.push(meeting);
+        }
+        return meeting;
+      }
+      let meeting = (window.circleMeetings || []).find(m => String(m.circle||'').trim().toUpperCase() === String(circle).trim().toUpperCase() && String(m.date||'').slice(0,10) === dateStr && normalizeMeetingCategory(m) === 'ANUNCIOS CORPORATIVOS');
+      if (!meeting) {
+        const rowsWithTime = window.zoomReportRows.filter(r => zoomExtractDateFromEntry(r.entry) === dateStr);
+        const times = rowsWithTime.map(r => {
+          const v = r.entry;
+          const d = v instanceof Date ? v : new Date(String(v));
+          return isNaN(d.getTime()) ? null : `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }).filter(Boolean);
+        const time = times.sort()[0] || '00:00';
+        const exitTimes = rowsWithTime.map(r => {
+          const v = r.exit;
+          const d = v instanceof Date ? v : new Date(String(v));
+          return isNaN(d.getTime()) ? null : `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }).filter(Boolean);
+        const endTime = exitTimes.sort().slice(-1)[0] || time;
+        const id = `ZOOM-ANUNCIOS-${dateStr}-${String(circle).replace(/[^a-zA-Z0-9]+/g,'-')}`;
+        meeting = {id,title:'ANUNCIOS CORPORATIVOS',type:'ANUNCIOS CORPORATIVOS',circle,host:'Sistema',date:dateStr,time,endTime,location:'Zoom',automatic:false,createdFromZoom:true,attendees:[]};
+        window.circleMeetings.push(meeting);
+      }
+      return meeting;
+    }
+
+    window.processZoomAttendance = async function() {
+      const circle = document.getElementById('zoomTargetCircle')?.value || '';
+      const type = document.getElementById('zoomSessionType')?.value || '';
+      if (!circle || !type || !window.zoomDatabaseRows.length || !window.zoomReportRows.length) {
+        window.showToast('Faltan datos', 'Selecciona círculo, tipo de sesión y carga ambos archivos.', 'error');
+        return;
+      }
+
+      const status = document.getElementById('zoomProcessStatus');
+      const btn = document.getElementById('btnProcessZoom');
+      if (btn) { btn.disabled = true; btn.innerText = 'Procesando...'; }
+
+      try {
+        const dateStr = zoomGetReportDate();
+        const allDates = [...new Set(window.zoomReportRows.map(r => zoomExtractDateFromEntry(r.entry)).filter(Boolean))];
+        if (!dateStr) throw new Error(allDates.length > 1 ? 'El reporte contiene varias fechas. Carga un reporte correspondiente a una sola sesión.' : 'No pude detectar la fecha de la sesión en Hora de entrada.');
+
+        // Acumular TODOS los ingresos de cada correo. Una persona puede entrar
+        // varias veces y siempre contará como máximo una asistencia para la sesión.
+        const sums = new Map();
+        const zoomRowsByEmail = new Map();
+        window.zoomReportRows.forEach(r => {
+          const email = zoomCleanEmail(r.email);
+          if (!email) return;
+          sums.set(email, (sums.get(email) || 0) + zoomParseMinutes(r.minutes));
+          if (!zoomRowsByEmail.has(email)) zoomRowsByEmail.set(email, []);
+          zoomRowsByEmail.get(email).push(r);
+        });
+
+        const beforeSnapshot = window.captureAuditSnapshot();
+        const meeting = zoomGetOrCreateMeeting(circle, type, dateStr);
+        meeting.attendees = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+
+        // IMPORTANTE: la lista que debe recibir ASISTENCIA/FALTA es la lista
+        // ACTUAL de miembros del círculo seleccionado. Antes se recorría solo
+        // la base cargada en el modal; por eso quienes no aparecían como
+        // coincidencia quedaban sin registro y el Reporte Mensual mostraba vacío.
+        const circleMembers = (window.circleUsers || []).filter(u =>
+          u && String(u.circle || '').trim().toUpperCase() === String(circle).trim().toUpperCase()
+        );
+
+        // Índice de la base oficial por correo para validar que el correo de
+        // Zoom pertenece realmente a la persona de la base subida.
+        const officialByEmail = new Map();
+        window.zoomDatabaseRows.forEach(base => {
+          const email = zoomCleanEmail(base.email);
+          if (email && !officialByEmail.has(email)) officialByEmail.set(email, base);
+        });
+
+        let present = 0, absent = 0, unmatched = 0;
+        const results = [];
+        const seenUsers = new Set();
+
+        circleMembers.forEach(member => {
+          if (seenUsers.has(member.id)) return;
+          seenUsers.add(member.id);
+
+          const memberEmail = zoomCleanEmail(member.email);
+          const officialBase = memberEmail ? officialByEmail.get(memberEmail) : null;
+          const officialEmail = zoomCleanEmail(officialBase?.email || member.email);
+          const zoomRowsForEmail = officialEmail ? (zoomRowsByEmail.get(officialEmail) || []) : [];
+          const totalMinutes = officialEmail ? (sums.get(officialEmail) || 0) : 0;
+
+          // Requisito doble:
+          // 1) El correo de Zoom debe coincidir con el correo oficial.
+          // 2) Los minutos acumulados deben ser >= 10.
+          const emailMatchesOfficial = !!officialBase && !!officialEmail;
+          const attended = emailMatchesOfficial && zoomRowsForEmail.length > 0 && totalMinutes >= 10;
+
+          let rec = meeting.attendees.find(a => a.userId === member.id);
+          if (!rec) {
+            rec = { userId: member.id, status: 'No asistió', note: '-' };
+            meeting.attendees.push(rec);
+          }
+
+          if (attended) {
+            rec.status = 'Asistió';
+            rec.note = `🎥 Zoom validado · ${totalMinutes} min acumulados · correo coincidente`;
+            present++;
+          } else {
+            // TODO miembro del círculo debe quedar explícitamente como FALTA
+            // cuando no cumple los requisitos; nunca se deja vacío.
+            rec.status = 'No asistió';
+            if (!officialBase) {
+              rec.note = '🎥 Correo del miembro no figura en la base oficial cargada o no coincide.';
+            } else if (!zoomRowsForEmail.length) {
+              rec.note = '🎥 No apareció con su correo oficial en el reporte de Zoom.';
+            } else {
+              rec.note = `🎥 Zoom: ${totalMinutes} min acumulados · no alcanza 10 min`;
+            }
+            absent++;
+          }
+
+          results.push({
+            base: officialBase || {
+              dni: member.doc || '',
+              name: member.name || '',
+              email: member.email || ''
+            },
+            totalMinutes,
+            zoomEmail: zoomRowsForEmail.length ? officialEmail : '—',
+            status: attended ? 'ASISTIÓ' : 'FALTA',
+            member
+          });
+        });
+
+        // Personas de la base oficial que no pertenecen al círculo elegido
+        // se conservan como "NO EN SISTEMA" solo en el resumen de resultados;
+        // no reciben asistencia/falta en esta sesión.
+        window.zoomDatabaseRows.forEach(base => {
+          const officialEmail = zoomCleanEmail(base.email);
+          if (!officialEmail) return;
+          const member = (window.circleUsers || []).find(u =>
+            u && String(u.circle || '').trim().toUpperCase() === String(circle).trim().toUpperCase() &&
+            zoomCleanEmail(u.email) === officialEmail
+          );
+          if (!member) {
+            unmatched++;
+            results.push({
+              base,
+              totalMinutes: sums.get(officialEmail) || 0,
+              zoomEmail: (zoomRowsByEmail.get(officialEmail) || []).length ? officialEmail : '—',
+              status: 'NO EN SISTEMA'
+            });
+          }
+        });
+
+        window.logAuditAction({
+          author: window.currentSessionUser?.name || 'Administrador',
+          action: 'Procesó asistencia de Zoom',
+          details: `${type} · ${circle} · ${dateStr} · ${present} asistencias · ${absent} faltas · ${unmatched} no encontrados en el sistema.`
+        }, beforeSnapshot);
+
+        const saveResult = await window.saveDataToServer();
+        if (!saveResult || saveResult.success !== true) throw new Error(saveResult?.error || 'Firebase no confirmó el guardado.');
+
+        window.zoomLastResult = {results,meeting,present,absent,unmatched,dateStr,type,circle};
+        window.renderZoomResults();
+        window.renderCalendar();
+        window.renderMonthlyReport();
+        window.renderUserDirectory();
+        window.renderAuditLogs();
+        if (status) status.innerText = `Procesado correctamente: ${present} asistencias y ${absent} faltas.`;
+        window.showToast('Asistencia procesada', `${present} asistencias y ${absent} faltas aplicadas a ${type}.`, 'success');
+      } catch (error) {
+        console.error('Error procesando Zoom:', error);
+        if (status) status.innerText = error.message || 'No se pudo procesar el reporte.';
+        window.showToast('Error al procesar Zoom', error.message || 'No se pudo procesar el reporte.', 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '⚡ Filtrar y Aplicar Asistencia'; }
+        zoomUpdateButtonState();
+      }
+    };
+
+
+    window.renderZoomResults = function() {
+      const panel = document.getElementById('zoomResultsPanel');
+      const body = document.getElementById('zoomResultsBody');
+      const summary = document.getElementById('zoomResultsSummary');
+      const session = document.getElementById('zoomResultsSession');
+      const data = window.zoomLastResult;
+      if (!panel || !body || !data) return;
+      panel.classList.remove('hidden');
+      if (summary) summary.innerText = `${data.present} asistencias · ${data.absent} faltas · ${data.unmatched} no encontrados en el sistema · ${data.results.length} registros procesados.`;
+      if (session) session.innerText = `${data.type} · ${data.circle} · ${data.dateStr}`;
+      body.innerHTML = '';
+      data.results.forEach(r => {
+        const tr = document.createElement('tr');
+        const statusHtml = r.status === 'ASISTIÓ'
+          ? '<span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">✓ ASISTIÓ</span>'
+          : r.status === 'FALTA'
+            ? '<span class="px-2 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold">✕ FALTA</span>'
+            : '<span class="px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold">⚠ NO EN SISTEMA</span>';
+        tr.innerHTML = `<td class="px-3 py-2 font-mono font-bold">${r.base.dni || '—'}</td><td class="px-4 py-2 font-semibold text-slate-800">${r.base.name || '—'}</td><td class="px-4 py-2 text-slate-500">${r.base.email || '—'}</td><td class="px-4 py-2 text-slate-500">${r.zoomEmail || '—'}</td><td class="px-3 py-2 text-center font-bold">${Number(r.totalMinutes || 0).toFixed(0)}</td><td class="px-3 py-2 text-center">${statusHtml}</td>`;
+        body.appendChild(tr);
+      });
+    };
 
     window.exportAuditToCSV = function() {
       const logs = window.auditLogEntries || [];
