@@ -94,7 +94,7 @@
     <!-- TARJETAS DE RESUMEN DE LA PERSONA -->
     <div id="reportSummaryCards" class="grid grid-cols-2 lg:grid-cols-5 gap-3"></div>
 
-    <!-- TABLA DE REGISTRO GENERAL DE ASISTENCIA (MISMA ESTRUCTURA Y CLASES) -->
+    <!-- TABLA DE REGISTRO GENERAL DE ASISTENCIA -->
     <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
       <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-50">
         <div class="flex items-center gap-2">
@@ -152,30 +152,28 @@
     let firebaseListenerStarted = false;
     let firebaseFirstLoadPromise = null;
 
+    // Normaliza objetos indexados de Firebase a ArraysJS
+    function toArray(data) {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (typeof data === 'object') return Object.values(data);
+      return [];
+    }
+
     function applyFirebaseData(data) {
       if (!data) return;
 
-      if (Array.isArray(data.users)) {
-        window.circleUsers = data.users;
-      }
+      window.circleUsers = toArray(data.users);
+      window.circleMeetings = toArray(data.meetings);
+      window.deletedMeetingIds = toArray(data.deletedMeetings);
 
-      if (Array.isArray(data.meetings)) {
-        window.circleMeetings = data.meetings;
-      }
-
-      if (Array.isArray(data.deletedMeetings)) {
-        window.deletedMeetingIds = data.deletedMeetings;
-      }
-
-      // Si el usuario ya inició sesión, actualizar inmediatamente
-      // la información que está viendo en pantalla.
       if (window.currentUser) {
         const dniActual = String(
           window.currentUser.doc || window.currentUser.dni || ''
         ).trim().toLowerCase();
 
         const usuarioActualizado = (window.circleUsers || []).find(u =>
-          String(u.doc || u.dni || '').trim().toLowerCase() === dniActual
+          u && String(u.doc || u.dni || '').trim().toLowerCase() === dniActual
         );
 
         if (usuarioActualizado) {
@@ -191,8 +189,6 @@
           if (circleEl) circleEl.innerText = usuarioActualizado.circle || '-';
           if (jobEl) jobEl.innerText = usuarioActualizado.job || 'Miembro';
 
-          // AQUÍ ESTÁ LA CLAVE:
-          // cada cambio de Firebase vuelve a calcular el reporte.
           window.renderMonthlyReport();
         }
       }
@@ -216,8 +212,6 @@
                 applyFirebaseData(data);
               }
 
-              // Solo resolvemos la primera lectura para que el login
-              // espere a tener los datos reales antes de buscar el DNI.
               if (firstSnapshot) {
                 firstSnapshot = false;
                 resolve(data || {});
@@ -250,11 +244,7 @@
         await startFirebaseSync();
         return true;
       } catch (error) {
-        console.error('No se pudo sincronizar con Firebase:', error);
-
-        // IMPORTANTE:
-        // Ya NO usamos localStorage ni database.json como fuente principal.
-        // Así evitamos que una copia vieja sobrescriba los datos actuales.
+        console.error('No se pudo conectar con Firebase:', error);
         return false;
       }
     }
@@ -275,7 +265,7 @@
       }
 
       const user = (window.circleUsers || []).find(u => 
-        String(u.doc || u.dni || '').trim().toLowerCase() === dni
+        u && String(u.doc || u.dni || '').trim().toLowerCase() === dni
       );
 
       if (user) {
@@ -331,7 +321,6 @@
       window.renderMonthlyReport();
     };
 
-    /* FUNCIONES EXACTAS DEL INDEX.HTML ORIGINAL */
     function reportDateKey(year, monthIndex, day) {
       return `${year}-${String(monthIndex + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     }
@@ -380,7 +369,7 @@
 
     function getReportMeetingFor(user, dateStr, category) {
       const meetings = (window.circleMeetings || []).filter(m =>
-        m.date === dateStr && m.circle === user.circle && reportTypeOfMeeting(m) === category
+        m && m.date === dateStr && m.circle === user.circle && reportTypeOfMeeting(m) === category
       );
       if (meetings.length) return meetings[0];
 
@@ -429,9 +418,10 @@
       const sharedJs = [];
 
       sessions.forEach(s => {
-        const rec = (s.meeting?.attendees || []).find(a => 
-          String(a.userId) === String(user.id) || 
-          (a.doc && String(a.doc) === String(user.doc || user.dni))
+        const attendees = toArray(s.meeting?.attendees);
+        const rec = attendees.find(a => 
+          a && (String(a.userId) === String(user.id) || 
+          (a.doc && String(a.doc) === String(user.doc || user.dni)))
         );
         if (!rec || !reportIsJustified(rec)) return;
 
@@ -462,9 +452,10 @@
       today.setHours(23,59,59,999);
       let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
       sessions.forEach(s => {
-        const rec = (s.meeting.attendees || []).find(a => 
-          String(a.userId) === String(user.id) || 
-          (a.doc && String(a.doc) === String(user.doc || user.dni))
+        const attendees = toArray(s.meeting?.attendees);
+        const rec = attendees.find(a => 
+          a && (String(a.userId) === String(user.id) || 
+          (a.doc && String(a.doc) === String(user.doc || user.dni)))
         );
         const sessionDate = new Date(`${s.date}T23:59:59`);
         const occurred = sessionDate <= today;
@@ -487,7 +478,6 @@
       return `<span class="inline-flex items-center justify-center min-w-[26px] px-1.5 py-1 rounded-md ${cls}">${text}</span>`;
     }
 
-    /* RENDERIZADO IDÉNTICO AL INDEX ORIGINAL */
     window.renderMonthlyReport = function() {
       const u = window.currentUser;
       if (!u) return;
@@ -553,9 +543,10 @@
 
       allSessions.forEach(s=>{
         const own = byKey.get(`${s.date}|${s.category}`);
-        let rec = own ? (own.meeting.attendees || []).find(a=>
-          String(a.userId) === String(u.id) || 
-          (a.doc && String(a.doc) === String(u.doc || u.dni))
+        const attendees = own ? toArray(own.meeting?.attendees) : [];
+        let rec = own ? attendees.find(a=>
+          a && (String(a.userId) === String(u.id) || 
+          (a.doc && String(a.doc) === String(u.doc || u.dni)))
         ) : null;
         let jc = rec && reportIsJustified(rec) ? (stats.jClasses.get(`${s.date}|${s.category}`)||'extra') : null;
         

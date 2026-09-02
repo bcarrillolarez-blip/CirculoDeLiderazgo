@@ -1440,40 +1440,64 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     // listener `on('value')` para conservar la sincronización en tiempo real.
     // Esto evita que la vista pública del QR intente buscar una reunión cuando
     // `window.circleMeetings` todavía está vacío.
-    window.syncWithBackend = async function() {
-      const firebaseRef = db.ref('circulosDB');
+    // Convierte cualquier dato de Firebase (Objeto o Array) a un arreglo seguro de JS
+function toArray(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (typeof data === 'object') return Object.values(data);
+  return [];
+}
 
-      const applyFirebaseData = (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
+  window.syncWithBackend = async function() {
+  const firebaseRef = db.ref('circulosDB');
 
-        if (Array.isArray(data.circles)) window.availableCircles = data.circles;
-        if (Array.isArray(data.users)) window.circleUsers = data.users;
-        if (Array.isArray(data.admins)) window.adminUsers = data.admins;
-        if (Array.isArray(data.meetings)) window.circleMeetings = data.meetings;
-        if (Array.isArray(data.deletedMeetings)) window.deletedMeetingIds = data.deletedMeetings;
-        if (Array.isArray(data.audit)) window.auditLogEntries = data.audit;
+  const applyFirebaseData = (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
 
-        window.sanitizeData();
-        window.populateCircleDropdowns();
-        window.renderAdminCirclesCheckboxes();
+    // Normaliza objetos indexados a arreglos JS
+    window.availableCircles = toArray(data.circles);
+    window.circleUsers = toArray(data.users);
+    window.adminUsers = toArray(data.admins);
+    window.circleMeetings = toArray(data.meetings);
+    window.deletedMeetingIds = toArray(data.deletedMeetings);
+    window.auditLogEntries = toArray(data.audit);
 
-        if (window.currentSessionUser) {
-          if (window.currentSessionUser.role === 'Miembro') {
-            window.renderMemberPortalMeetings();
-          } else {
-            window.renderCalendar();
-            window.renderMonthlyReport();
-            window.renderUserDirectory();
-            window.renderAdminDirectory();
-            window.renderAuditLogs();
-            window.updateGlobalStats();
-            if (window.currentOpenMeetingId) {
-              window.renderOpenMeetingAttendeesTable();
-            }
-          }
+    window.sanitizeData();
+    window.populateCircleDropdowns();
+    window.renderAdminCirclesCheckboxes();
+
+    if (window.currentSessionUser) {
+      if (window.currentSessionUser.role === 'Miembro') {
+        window.renderMemberPortalMeetings();
+      } else {
+        window.renderCalendar();
+        window.renderMonthlyReport();
+        window.renderUserDirectory();
+        window.renderAdminDirectory();
+        window.renderAuditLogs();
+        window.updateGlobalStats();
+        if (window.currentOpenMeetingId) {
+          window.renderOpenMeetingAttendeesTable();
         }
-      };
+      }
+    }
+  };
+
+  try {
+    const initialSnapshot = await firebaseRef.once('value');
+    applyFirebaseData(initialSnapshot);
+
+    firebaseRef.on('value', applyFirebaseData, (error) => {
+      console.error('Error en la sincronización en tiempo real con Firebase:', error);
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error al cargar los datos iniciales desde Firebase:', error);
+    return { success: false, error: error.message };
+  }
+};
 
       try {
         // Esperar a que Firebase entregue la base de datos por primera vez.
@@ -1859,58 +1883,60 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     }
 
     function getReportJClasses(user, sessions) {
-      const result = new Map();
-      const mesJs = [];
-      const sharedJs = [];
+    const result = new Map();
+    const mesJs = [];
+    const sharedJs = [];
 
-      sessions.forEach(s => {
-        const rec = (s.meeting?.attendees || []).find(a => a.userId === user.id);
-        if (!rec || !reportIsJustified(rec)) return;
+    sessions.forEach(s => {
+    const attendees = toArray(s.meeting?.attendees);
+    const rec = attendees.find(a => a && (String(a.userId) === String(user.id) || (a.doc && String(a.doc) === String(user.doc || user.dni))));
+    if (!rec || !reportIsJustified(rec)) return;
 
-        if (s.category === 'MES') {
-          mesJs.push({s, rec});
-        } else if (['HEALTH', 'ANUNCIOS CORPORATIVOS', 'MASTERCLASS'].includes(s.category)) {
-          sharedJs.push({s, rec});
-        }
-      });
-
-      mesJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-      sharedJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-
-      mesJs.forEach((x, i) => {
-        result.set(x.s.date + '|' + x.s.category, i < 1 ? 'valid' : 'extra');
-      });
-
-      sharedJs.forEach((x, i) => {
-        result.set(x.s.date + '|' + x.s.category, i < 3 ? 'valid' : 'extra');
-      });
-
-      return result;
+    if (s.category === 'MES') {
+      mesJs.push({s, rec});
+    } else if (['HEALTH', 'ANUNCIOS CORPORATIVOS', 'MASTERCLASS'].includes(s.category)) {
+      sharedJs.push({s, rec});
     }
+  });
+
+  mesJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
+  sharedJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
+
+  mesJs.forEach((x, i) => {
+    result.set(x.s.date + '|' + x.s.category, i < 1 ? 'valid' : 'extra');
+  });
+
+  sharedJs.forEach((x, i) => {
+    result.set(x.s.date + '|' + x.s.category, i < 3 ? 'valid' : 'extra');
+  });
+
+  return result;
+}
 
     function getReportPersonStats(user, sessions) {
-      const jClasses = getReportJClasses(user, sessions);
-      const today = new Date();
-      today.setHours(23,59,59,999);
-      let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
-      sessions.forEach(s => {
-        const rec = (s.meeting.attendees || []).find(a => a.userId === user.id);
-        const sessionDate = new Date(`${s.date}T23:59:59`);
-        const occurred = sessionDate <= today;
-        if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
-        scheduled++;
-        if (!rec) { absent++; return; }
-        if (reportIsJustified(rec)) {
-          const jc = jClasses.get(s.date + '|' + s.category) || 'extra';
-          if (jc === 'valid') { attended++; justifiedValid++; }
-          else { absent++; justifiedExtra++; }
-        } else if (reportIsAttendance(rec)) attended++;
-        else absent++;
-      });
-      const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
-      const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
-      return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
-    }
+    const jClasses = getReportJClasses(user, sessions);
+    const today = new Date();
+    today.setHours(23,59,59,999);
+    let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
+    sessions.forEach(s => {
+    const attendees = toArray(s.meeting?.attendees);
+    const rec = attendees.find(a => a && (String(a.userId) === String(user.id) || (a.doc && String(a.doc) === String(user.doc || user.dni))));
+    const sessionDate = new Date(`${s.date}T23:59:59`);
+    const occurred = sessionDate <= today;
+    if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
+    scheduled++;
+    if (!rec) { absent++; return; }
+    if (reportIsJustified(rec)) {
+      const jc = jClasses.get(s.date + '|' + s.category) || 'extra';
+      if (jc === 'valid') { attended++; justifiedValid++; }
+      else { absent++; justifiedExtra++; }
+    } else if (reportIsAttendance(rec)) attended++;
+    else absent++;
+  });
+    const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
+    const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
+    return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
+}
 
     function reportBadge(text, cls) {
       return `<span class="inline-flex items-center justify-center min-w-[26px] px-1.5 py-1 rounded-md ${cls}">${text}</span>`;
