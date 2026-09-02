@@ -196,46 +196,24 @@
 
     function startFirebaseSync() {
       if (firebaseListenerStarted) return firebaseFirstLoadPromise;
-
       firebaseListenerStarted = true;
-
       firebaseFirstLoadPromise = new Promise((resolve, reject) => {
         let firstSnapshot = true;
-
-        db.ref('circulosDB').on(
-          'value',
-          (snapshot) => {
-            try {
-              const data = snapshot.val();
-
-              if (data) {
-                applyFirebaseData(data);
-              }
-
-              if (firstSnapshot) {
-                firstSnapshot = false;
-                resolve(data || {});
-              }
-            } catch (error) {
-              console.error('Error procesando datos de Firebase:', error);
-
-              if (firstSnapshot) {
-                firstSnapshot = false;
-                reject(error);
-              }
-            }
-          },
-          (error) => {
-            console.error('Error leyendo Firebase:', error);
-
-            if (firstSnapshot) {
-              firstSnapshot = false;
-              reject(error);
-            }
+        db.ref('circulosDB').on('value', (snapshot) => {
+          try {
+            const data = snapshot.val() || {};
+            applyFirebaseData(data);
+            if (window.currentUser) window.renderMonthlyReport();
+            if (firstSnapshot) { firstSnapshot=false; resolve(data); }
+          } catch(error) {
+            console.error('Error procesando datos de Firebase:',error);
+            if(firstSnapshot){firstSnapshot=false;reject(error);}
           }
-        );
+        }, (error) => {
+          console.error('Error leyendo Firebase:',error);
+          if(firstSnapshot){firstSnapshot=false;reject(error);}
+        });
       });
-
       return firebaseFirstLoadPromise;
     }
 

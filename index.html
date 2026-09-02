@@ -1440,98 +1440,88 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     // listener `on('value')` para conservar la sincronización en tiempo real.
     // Esto evita que la vista pública del QR intente buscar una reunión cuando
     // `window.circleMeetings` todavía está vacío.
-    // Convierte cualquier dato de Firebase (Objeto o Array) a un arreglo seguro de JS
-function toArray(data) {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (typeof data === 'object') return Object.values(data);
-  return [];
-}
+    let firebaseRef = db.ref('circulosDB');
+    let firebaseListenerStarted = false;
+    let firebaseFirstLoadPromise = null;
+    let lastFirebasePayload = null;
 
-  window.syncWithBackend = async function() {
-  const firebaseRef = db.ref('circulosDB');
+    function cloneFirebaseData(data) { return JSON.parse(JSON.stringify(data || {})); }
+    function normalizeFirebasePayload(data) {
+      return {
+        circles: Array.isArray(data?.circles) ? data.circles : [],
+        users: Array.isArray(data?.users) ? data.users : [],
+        admins: Array.isArray(data?.admins) ? data.admins : [],
+        meetings: Array.isArray(data?.meetings) ? data.meetings : [],
+        deletedMeetings: Array.isArray(data?.deletedMeetings) ? data.deletedMeetings : [],
+        audit: Array.isArray(data?.audit) ? data.audit : []
+      };
+    }
 
-  const applyFirebaseData = (snapshot) => {
-    const data = snapshot.val();
-    if (!data) return;
-
-    // Normaliza objetos indexados a arreglos JS
-    window.availableCircles = toArray(data.circles);
-    window.circleUsers = toArray(data.users);
-    window.adminUsers = toArray(data.admins);
-    window.circleMeetings = toArray(data.meetings);
-    window.deletedMeetingIds = toArray(data.deletedMeetings);
-    window.auditLogEntries = toArray(data.audit);
-
-    window.sanitizeData();
-    window.populateCircleDropdowns();
-    window.renderAdminCirclesCheckboxes();
-
-    if (window.currentSessionUser) {
-      if (window.currentSessionUser.role === 'Miembro') {
-        window.renderMemberPortalMeetings();
-      } else {
-        window.renderCalendar();
-        window.renderMonthlyReport();
-        window.renderUserDirectory();
-        window.renderAdminDirectory();
-        window.renderAuditLogs();
-        window.updateGlobalStats();
-        if (window.currentOpenMeetingId) {
-          window.renderOpenMeetingAttendeesTable();
+    function applyFirebaseData(snapshot) {
+      const data = snapshot?.val ? snapshot.val() : snapshot;
+      if (!data) return;
+      const normalized = normalizeFirebasePayload(data);
+      lastFirebasePayload = cloneFirebaseData(normalized);
+      window.availableCircles = normalized.circles;
+      window.circleUsers = normalized.users;
+      window.adminUsers = normalized.admins;
+      window.circleMeetings = normalized.meetings;
+      window.deletedMeetingIds = normalized.deletedMeetings;
+      window.auditLogEntries = normalized.audit;
+      window.populateCircleDropdowns();
+      window.renderAdminCirclesCheckboxes();
+      if (window.currentSessionUser) {
+        if (window.currentSessionUser.role === 'Miembro') {
+          window.renderMemberPortalMeetings();
+        } else {
+          window.renderCalendar(); window.renderMonthlyReport(); window.renderUserDirectory();
+          window.renderAdminDirectory(); window.renderAuditLogs(); window.updateGlobalStats();
+          if (window.currentOpenMeetingId) window.renderOpenMeetingAttendeesTable();
         }
       }
+      window.sanitizeData();
     }
-  };
 
-  try {
-    const initialSnapshot = await firebaseRef.once('value');
-    applyFirebaseData(initialSnapshot);
-
-    firebaseRef.on('value', applyFirebaseData, (error) => {
-      console.error('Error en la sincronización en tiempo real con Firebase:', error);
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error al cargar los datos iniciales desde Firebase:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-      try {
-        // Esperar a que Firebase entregue la base de datos por primera vez.
-        const initialSnapshot = await firebaseRef.once('value');
-        applyFirebaseData(initialSnapshot);
-
-        // A partir de aquí mantenemos la sincronización en tiempo real.
-        firebaseRef.on('value', applyFirebaseData, (error) => {
-          console.error('Error en la sincronización en tiempo real con Firebase:', error);
+    window.syncWithBackend = async function() {
+      if (firebaseListenerStarted) return firebaseFirstLoadPromise;
+      firebaseListenerStarted = true;
+      firebaseFirstLoadPromise = new Promise((resolve, reject) => {
+        let firstSnapshot = true;
+        firebaseRef.on('value', (snapshot) => {
+          try {
+            applyFirebaseData(snapshot);
+            if (firstSnapshot) { firstSnapshot = false; resolve({success:true,data:snapshot.val()||{}}); }
+          } catch (error) {
+            console.error('Error procesando datos de Firebase:', error);
+            if (firstSnapshot) { firstSnapshot=false; reject(error); }
+          }
+        }, (error) => {
+          console.error('Error en la conexión con Firebase Realtime Database:', error);
+          if (firstSnapshot) { firstSnapshot=false; reject(error); }
         });
-
-        return { success: true };
-      } catch (error) {
-        console.error('Error al cargar los datos iniciales desde Firebase:', error);
-        return { success: false, error: error.message };
-      }
+      });
+      return firebaseFirstLoadPromise;
     };
 
     window.saveDataToServer = async function() {
-      const payload = {
-        circles: Array.isArray(window.availableCircles) ? window.availableCircles : [],
-        users: Array.isArray(window.circleUsers) ? window.circleUsers : [],
-        admins: Array.isArray(window.adminUsers) ? window.adminUsers : [],
-        meetings: Array.isArray(window.circleMeetings) ? window.circleMeetings : [],
-        deletedMeetings: Array.isArray(window.deletedMeetingIds) ? window.deletedMeetingIds : [],
-        audit: Array.isArray(window.auditLogEntries) ? window.auditLogEntries : []
-      };
+      const localPayload = normalizeFirebasePayload({circles:window.availableCircles,users:window.circleUsers,admins:window.adminUsers,meetings:window.circleMeetings,deletedMeetings:window.deletedMeetingIds,audit:window.auditLogEntries});
       try {
-        localStorage.setItem('CIRCULOS_DB_SOYEMBAJADOR', JSON.stringify(payload));
-        await db.ref('circulosDB').set(payload);
-        return { success: true };
+        const base = lastFirebasePayload || {};
+        await firebaseRef.transaction((serverData) => {
+          const server = normalizeFirebasePayload(serverData || {});
+          const merged = cloneFirebaseData(server);
+          ['circles','users','admins','meetings','deletedMeetings','audit'].forEach(section => {
+            if (JSON.stringify(base[section] ?? []) !== JSON.stringify(localPayload[section] ?? [])) merged[section] = localPayload[section];
+          });
+          return merged;
+        });
+        lastFirebasePayload = cloneFirebaseData(localPayload);
+        localStorage.setItem('CIRCULOS_DB_SOYEMBAJADOR', JSON.stringify(localPayload));
+        return {success:true};
       } catch (e) {
         console.error('Error al sincronizar con Firebase:', e);
-        return { success: false, error: e.message };
+        window.showToast?.('Error de sincronización','No se pudo guardar en Firebase. Revisa tu conexión y las reglas de Realtime Database.','error');
+        return {success:false,error:e.message};
       }
     };
 
@@ -1883,60 +1873,58 @@ function toArray(data) {
     }
 
     function getReportJClasses(user, sessions) {
-    const result = new Map();
-    const mesJs = [];
-    const sharedJs = [];
+      const result = new Map();
+      const mesJs = [];
+      const sharedJs = [];
 
-    sessions.forEach(s => {
-    const attendees = toArray(s.meeting?.attendees);
-    const rec = attendees.find(a => a && (String(a.userId) === String(user.id) || (a.doc && String(a.doc) === String(user.doc || user.dni))));
-    if (!rec || !reportIsJustified(rec)) return;
+      sessions.forEach(s => {
+        const rec = (s.meeting?.attendees || []).find(a => a.userId === user.id);
+        if (!rec || !reportIsJustified(rec)) return;
 
-    if (s.category === 'MES') {
-      mesJs.push({s, rec});
-    } else if (['HEALTH', 'ANUNCIOS CORPORATIVOS', 'MASTERCLASS'].includes(s.category)) {
-      sharedJs.push({s, rec});
+        if (s.category === 'MES') {
+          mesJs.push({s, rec});
+        } else if (['HEALTH', 'ANUNCIOS CORPORATIVOS', 'MASTERCLASS'].includes(s.category)) {
+          sharedJs.push({s, rec});
+        }
+      });
+
+      mesJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
+      sharedJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
+
+      mesJs.forEach((x, i) => {
+        result.set(x.s.date + '|' + x.s.category, i < 1 ? 'valid' : 'extra');
+      });
+
+      sharedJs.forEach((x, i) => {
+        result.set(x.s.date + '|' + x.s.category, i < 3 ? 'valid' : 'extra');
+      });
+
+      return result;
     }
-  });
-
-  mesJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-  sharedJs.sort((a,b) => a.s.date.localeCompare(b.s.date));
-
-  mesJs.forEach((x, i) => {
-    result.set(x.s.date + '|' + x.s.category, i < 1 ? 'valid' : 'extra');
-  });
-
-  sharedJs.forEach((x, i) => {
-    result.set(x.s.date + '|' + x.s.category, i < 3 ? 'valid' : 'extra');
-  });
-
-  return result;
-}
 
     function getReportPersonStats(user, sessions) {
-    const jClasses = getReportJClasses(user, sessions);
-    const today = new Date();
-    today.setHours(23,59,59,999);
-    let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
-    sessions.forEach(s => {
-    const attendees = toArray(s.meeting?.attendees);
-    const rec = attendees.find(a => a && (String(a.userId) === String(user.id) || (a.doc && String(a.doc) === String(user.doc || user.dni))));
-    const sessionDate = new Date(`${s.date}T23:59:59`);
-    const occurred = sessionDate <= today;
-    if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
-    scheduled++;
-    if (!rec) { absent++; return; }
-    if (reportIsJustified(rec)) {
-      const jc = jClasses.get(s.date + '|' + s.category) || 'extra';
-      if (jc === 'valid') { attended++; justifiedValid++; }
-      else { absent++; justifiedExtra++; }
-    } else if (reportIsAttendance(rec)) attended++;
-    else absent++;
-  });
-    const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
-    const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
-    return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
-}
+      const jClasses = getReportJClasses(user, sessions);
+      const today = new Date();
+      today.setHours(23,59,59,999);
+      let scheduled = 0, attended = 0, absent = 0, pending = 0, justifiedValid = 0, justifiedExtra = 0;
+      sessions.forEach(s => {
+        const rec = (s.meeting.attendees || []).find(a => a.userId === user.id);
+        const sessionDate = new Date(`${s.date}T23:59:59`);
+        const occurred = sessionDate <= today;
+        if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
+        scheduled++;
+        if (!rec) { absent++; return; }
+        if (reportIsJustified(rec)) {
+          const jc = jClasses.get(s.date + '|' + s.category) || 'extra';
+          if (jc === 'valid') { attended++; justifiedValid++; }
+          else { absent++; justifiedExtra++; }
+        } else if (reportIsAttendance(rec)) attended++;
+        else absent++;
+      });
+      const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
+      const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
+      return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
+    }
 
     function reportBadge(text, cls) {
       return `<span class="inline-flex items-center justify-center min-w-[26px] px-1.5 py-1 rounded-md ${cls}">${text}</span>`;
