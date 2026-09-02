@@ -1724,8 +1724,36 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
             const d=new Date(year,month,day); if(d.getDay()!==cfg.day)continue;
             const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
             const id=`AUTO-${type}-${dateStr}-${circle.replace(/[^a-zA-Z0-9]+/g,'-')}`;
-            const exists=(window.circleMeetings||[]).some(m=>String(m.id||'')===id||(String(m.circle||'').trim().toUpperCase()===String(circle).trim().toUpperCase()&&String(m.date||'').slice(0,10)===dateStr&&normalizeMeetingCategory(m)===type));
-            if(!exists&&!(window.deletedMeetingIds||[]).includes(id)){window.circleMeetings.push({id,title:cfg.title,type,circle,host:'Sistema',date:dateStr,time:cfg.time,endTime:cfg.endTime,location:'Virtual / Presencial',automatic:true,attendees:[]});created=true;}
+            const circleKey=String(circle).trim().toUpperCase();
+            let existing=(window.circleMeetings||[]).find(m=>String(m.id||'')===id);
+            // Si existe el antiguo anuncio dominical automático, lo convertimos en MENTORÍA
+            // para conservar sus asistencias pero darle el horario oficial de 8:00 PM a 9:00 PM.
+            if(type==='MENTORIA' && !existing){
+              existing=(window.circleMeetings||[]).find(m=>
+                String(m.circle||'').trim().toUpperCase()===circleKey &&
+                String(m.date||'').slice(0,10)===dateStr &&
+                legacySundayAnnouncementIsMentoria(m)
+              );
+              if(existing){
+                existing.type='MENTORIA';
+                existing.title=cfg.title;
+                existing.time=cfg.time;
+                existing.endTime=cfg.endTime;
+                existing.automatic=true;
+                created=true;
+              }
+            }
+            const existsFixed=existing || (window.circleMeetings||[]).some(m=>
+              String(m.circle||'').trim().toUpperCase()===circleKey &&
+              String(m.date||'').slice(0,10)===dateStr &&
+              normalizeMeetingCategory(m)===type &&
+              String(m.time||'').slice(0,5)===cfg.time &&
+              String(m.endTime||'').slice(0,5)===cfg.endTime
+            );
+            if(!existsFixed&&!(window.deletedMeetingIds||[]).includes(id)){
+              window.circleMeetings.push({id,title:cfg.title,type,circle,host:'Sistema',date:dateStr,time:cfg.time,endTime:cfg.endTime,location:'Virtual / Presencial',automatic:true,attendees:[]});
+              created=true;
+            }
           }
         });
       });
