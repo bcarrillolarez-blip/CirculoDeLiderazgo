@@ -1609,7 +1609,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           return merged;
         });
         lastFirebasePayload = cloneFirebaseData(localPayload);
-        localStorage.setItem('CIRCULOS_DB_SOYEMBAJADOR', JSON.stringify(localPayload));
+        // Firebase es la fuente principal de datos. No guardamos aquí toda
+        // la base en localStorage porque puede superar la cuota del navegador.
         return {success:true};
       } catch (e) {
         console.error('Error al sincronizar con Firebase:', e);
@@ -1985,6 +1986,13 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       return { symbol: 'F', cls: 'text-rose-700 bg-rose-50 font-extrabold', title: 'No asistió' };
     }
 
+    function reportIsZoomProcessedMeeting(meeting) {
+      if (!meeting) return false;
+      if (meeting.zoomProcessed === true || meeting.createdFromZoom === true) return true;
+      const attendees = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+      return attendees.some(a => String(a?.note || '').trim().startsWith('🎥 '));
+    }
+
     function getReportMeetingFor(user,dateStr,category){
       const meetings=(window.circleMeetings||[]).filter(m=>
         String(m.date||'').slice(0,10)===dateStr &&
@@ -2039,7 +2047,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         const rec = (s.meeting.attendees || []).find(a => a.userId === user.id);
         const sessionDate = new Date(`${s.date}T23:59:59`);
         const occurred = sessionDate <= today;
-        if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
+        const zoomProcessed = reportIsZoomProcessedMeeting(s.meeting);
+        if (!occurred && !zoomProcessed && (!rec || rec.status === 'No asistió')) { pending++; return; }
         scheduled++;
         if (!rec) { absent++; return; }
         if (reportIsJustified(rec)) {
@@ -2156,13 +2165,14 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           
           const sessionDate = new Date(`${s.date}T23:59:59`);
           const occurred = sessionDate <= new Date();
+          const zoomProcessed = reportIsZoomProcessedMeeting(s.meeting);
 
           if (!own) {
             cells += `<td class="px-2 py-2 border-l border-slate-100 text-slate-200">—</td>`;
-          } else if (!occurred && (!rec || rec.status === 'No asistió')) {
+          } else if (!occurred && !zoomProcessed && (!rec || rec.status === 'No asistió')) {
             cells += `<td class="px-2 py-2 border-l border-slate-100" title="Pendiente (Fecha futura)">${reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
           } else if (!rec) {
-            cells += `<td class="px-2 py-2 border-l border-slate-100">${occurred ? reportBadge('F','text-rose-700 bg-rose-50 font-extrabold') : reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
+            cells += `<td class="px-2 py-2 border-l border-slate-100">${(occurred || zoomProcessed) ? reportBadge('F','text-rose-700 bg-rose-50 font-extrabold') : reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
           } else {
             const st = reportStatusFor(rec,jc);
             let title = st.title;
@@ -3798,6 +3808,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         const beforeSnapshot = window.captureAuditSnapshot();
         const meeting = zoomGetOrCreateMeeting(circle, type, dateStr);
         meeting.attendees = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+        meeting.zoomProcessed = true;
 
         // IMPORTANTE: la lista que debe recibir ASISTENCIA/FALTA es la lista
         // ACTUAL de miembros del círculo seleccionado. Antes se recorría solo

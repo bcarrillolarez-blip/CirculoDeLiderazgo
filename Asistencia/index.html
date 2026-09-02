@@ -548,7 +548,8 @@
         const rec = (s.meeting.attendees || []).find(a => a.userId === user.id);
         const sessionDate = new Date(`${s.date}T23:59:59`);
         const occurred = sessionDate <= today;
-        if (!occurred && (!rec || rec.status === 'No asistió')) { pending++; return; }
+        const zoomProcessed = reportIsZoomProcessedMeeting(s.meeting);
+        if (!occurred && !zoomProcessed && (!rec || rec.status === 'No asistió')) { pending++; return; }
         scheduled++;
         if (!rec) { absent++; return; }
         if (reportIsJustified(rec)) {
@@ -561,6 +562,13 @@
       const pct = scheduled ? Math.round(attended / scheduled * 100) : 0;
       const bonus = scheduled > 0 && pending === 0 && attended === scheduled;
       return { scheduled, attended, absent, pending, justifiedValid, justifiedExtra, pct, bonus, jClasses };
+    }
+
+    function reportIsZoomProcessedMeeting(meeting) {
+      if (!meeting) return false;
+      if (meeting.zoomProcessed === true || meeting.createdFromZoom === true) return true;
+      const attendees = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+      return attendees.some(a => String(a?.note || '').trim().startsWith('🎥 '));
     }
 
     function reportBadge(text, cls) {
@@ -656,13 +664,14 @@
           
           const sessionDate = new Date(`${s.date}T23:59:59`);
           const occurred = sessionDate <= new Date();
+          const zoomProcessed = reportIsZoomProcessedMeeting(s.meeting);
 
           if (!own) {
             cells += `<td class="px-2 py-2 border-l border-slate-100 text-slate-200">—</td>`;
-          } else if (!occurred && (!rec || rec.status === 'No asistió')) {
+          } else if (!occurred && !zoomProcessed && (!rec || rec.status === 'No asistió')) {
             cells += `<td class="px-2 py-2 border-l border-slate-100" title="Pendiente (Fecha futura)">${reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
           } else if (!rec) {
-            cells += `<td class="px-2 py-2 border-l border-slate-100">${occurred ? reportBadge('F','text-rose-700 bg-rose-50 font-extrabold') : reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
+            cells += `<td class="px-2 py-2 border-l border-slate-100">${(occurred || zoomProcessed) ? reportBadge('F','text-rose-700 bg-rose-50 font-extrabold') : reportBadge('·','text-slate-300 bg-slate-50')}</td>`;
           } else {
             const st = reportStatusFor(rec,jc);
             let title = st.title;
