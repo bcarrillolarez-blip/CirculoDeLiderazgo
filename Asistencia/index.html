@@ -337,11 +337,25 @@
       appId: "1:599027832649:web:d78cd89aebc2c1d8062c98"
     };
 
+    // Se conserva Compat para no tocar la arquitectura existente.
+    // Firebase se mantiene en línea y el listener se puede reconstruir si la
+    // primera conexión falla; esto evita quedar bloqueado con una Promise
+    // rechazada durante toda la vida de la página.
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
+    const firebaseRef = db.ref('circulosDB');
+    const firebaseConnectedRef = db.ref('.info/connected');
+    let firebaseConnected = false;
     let firebaseListenerStarted = false;
     let firebaseFirstLoadPromise = null;
+    let firebaseValueHandler = null;
+
+    firebaseConnectedRef.on('value', snapshot => {
+      firebaseConnected = snapshot.val() === true;
+      window.firebaseConnected = firebaseConnected;
+      document.documentElement.dataset.firebaseConnected = firebaseConnected ? 'true' : 'false';
+      console.info(`[Firebase] ${firebaseConnected ? 'Conectado' : 'Desconectado'} con Realtime Database.`);
+    });
 
     function toArray(data) {
       if (!data) return [];
@@ -368,8 +382,9 @@
         .filter(Boolean);
 
       window.circleUsers = toArray(data.users);
-      window.circleMeetings = toArray(data.meetings);
       window.deletedMeetingIds = toArray(data.deletedMeetings);
+      const deletedIds = new Set(window.deletedMeetingIds.map(id => String(id)));
+      window.circleMeetings = toArray(data.meetings).filter(m => !deletedIds.has(String(m?.id || '')));
 
       const activeCircleKeys = new Set(
         (window.availableCircles || [])
@@ -416,40 +431,44 @@
     // SINCRONIZACIÓN EN TIEMPO REAL
     // ============================================================
     function startFirebaseSync() {
-      if (firebaseListenerStarted) return firebaseFirstLoadPromise;
+      if (firebaseListenerStarted && firebaseFirstLoadPromise) return firebaseFirstLoadPromise;
 
       firebaseListenerStarted = true;
+      try { db.goOnline(); } catch (_) {}
 
       firebaseFirstLoadPromise = new Promise((resolve, reject) => {
         let firstSnapshot = true;
 
-        db.ref('circulosDB').on('value', (snapshot) => {
+        firebaseValueHandler = snapshot => {
           try {
             const data = snapshot.val() || {};
-
             applyFirebaseData(data);
-
-            if (window.currentUser) {
-              window.renderMonthlyReport();
-            }
-
+            if (window.currentUser) window.renderMonthlyReport();
             if (firstSnapshot) {
               firstSnapshot = false;
               resolve(data);
             }
           } catch (error) {
             console.error('Error procesando datos de Firebase:', error);
-
             if (firstSnapshot) {
               firstSnapshot = false;
+              firebaseListenerStarted = false;
+              firebaseFirstLoadPromise = null;
+              if (firebaseValueHandler) firebaseRef.off('value', firebaseValueHandler);
+              firebaseValueHandler = null;
               reject(error);
             }
           }
-        }, (error) => {
-          console.error('Error leyendo Firebase:', error);
+        };
 
+        firebaseRef.on('value', firebaseValueHandler, error => {
+          console.error('Error leyendo Firebase:', error);
           if (firstSnapshot) {
             firstSnapshot = false;
+            firebaseListenerStarted = false;
+            firebaseFirstLoadPromise = null;
+            if (firebaseValueHandler) firebaseRef.off('value', firebaseValueHandler);
+            firebaseValueHandler = null;
             reject(error);
           }
         });
@@ -460,11 +479,11 @@
 
     async function syncWithBackend() {
       try {
-        await startFirebaseSync();
-        return true;
+        const data = await startFirebaseSync();
+        return {success:true,data};
       } catch (error) {
         console.error('No se pudo conectar con Firebase:', error);
-        return false;
+        return {success:false,error:error?.message || String(error)};
       }
     }
 
@@ -480,9 +499,9 @@
 
       const errBox = document.getElementById('loginErrorMessage');
 
-      const firebaseOk = await syncWithBackend();
+      const firebaseResult = await syncWithBackend();
 
-      if (!firebaseOk) {
+      if (!firebaseResult?.success) {
         if (errBox) {
           errBox.innerText = 'No se pudo conectar con el servidor de asistencia. Intenta nuevamente.';
           errBox.classList.remove('hidden');

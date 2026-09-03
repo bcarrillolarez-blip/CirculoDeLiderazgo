@@ -1687,8 +1687,11 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     // Esto evita que la vista pública del QR intente buscar una reunión cuando
     // `window.circleMeetings` todavía está vacío.
     let firebaseRef = db.ref('circulosDB');
+    let firebaseConnectedRef = db.ref('.info/connected');
+    let firebaseConnected = false;
     let firebaseListenerStarted = false;
     let firebaseFirstLoadPromise = null;
+    let firebaseValueHandler = null;
     let lastFirebasePayload = null;
 
     function cloneFirebaseData(data) { return JSON.parse(JSON.stringify(data || {})); }
@@ -1703,6 +1706,44 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       };
     }
 
+    // Estado real de la conexión. Firebase mantiene la conexión abierta y
+    // vuelve a conectarse automáticamente; aquí solo lo usamos para evitar
+    // intentar guardar mientras el cliente está realmente desconectado.
+    firebaseConnectedRef.on('value', snapshot => {
+      firebaseConnected = snapshot.val() === true;
+      window.firebaseConnected = firebaseConnected;
+      document.documentElement.dataset.firebaseConnected = firebaseConnected ? 'true' : 'false';
+      if (firebaseConnected) console.info('[Firebase] Conectado a Realtime Database.');
+      else console.warn('[Firebase] Sin conexión con Realtime Database.');
+    });
+
+    async function waitForFirebaseConnection(timeoutMs = 12000) {
+      if (firebaseConnected) return true;
+
+      // Si el cliente había quedado offline, Firebase puede volver a ponerse
+      // online sin reinicializar la aplicación.
+      try { db.goOnline(); } catch (_) {}
+
+      return new Promise((resolve, reject) => {
+        let finished = false;
+        const connectedOnceRef = db.ref('.info/connected');
+        const finish = (ok, error) => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          connectedOnceRef.off('value', onConnection);
+          ok ? resolve(true) : reject(error || new Error('Firebase no está conectado.'));
+        };
+        const onConnection = snapshot => {
+          if (snapshot.val() === true) finish(true);
+        };
+        const timer = setTimeout(() => {
+          finish(false, new Error('Firebase no está conectado. Verifica la red o las reglas de Realtime Database.'));
+        }, timeoutMs);
+        connectedOnceRef.on('value', onConnection);
+      });
+    }
+
     function applyFirebaseData(snapshot) {
       const data = snapshot?.val ? snapshot.val() : snapshot;
       if (!data) return;
@@ -1710,8 +1751,6 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       lastFirebasePayload = cloneFirebaseData(normalized);
 
       // Los círculos activos se toman de la colección de círculos guardada en Firebase.
-      // Si todavía no existe esa colección, usamos la lista inicial como semilla.
-      // Esto permite que el sistema crezca sin fijar el número de círculos en el código.
       const firebaseCircles = Array.isArray(normalized.circles)
         ? normalized.circles.map(c => String(c || '').trim()).filter(Boolean)
         : [];
@@ -1721,7 +1760,12 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         : [...(window.OFFICIAL_CIRCLES || [])];
       window.circleUsers = normalized.users;
       window.adminUsers = normalized.admins;
-      window.circleMeetings = normalized.meetings;
+
+      // deletedMeetings funciona como una lista de "tumbas": aunque otro
+      // dispositivo todavía tenga una copia vieja de la reunión, nunca debe
+      // volver a mostrarse después de una eliminación confirmada.
+      const deletedIds = new Set((normalized.deletedMeetings || []).map(id => String(id)));
+      window.circleMeetings = normalized.meetings.filter(m => !deletedIds.has(String(m?.id || '')));
       window.deletedMeetingIds = normalized.deletedMeetings;
       window.auditLogEntries = normalized.audit;
       window.populateCircleDropdowns();
@@ -1739,46 +1783,88 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     }
 
     window.syncWithBackend = async function() {
-      if (firebaseListenerStarted) return firebaseFirstLoadPromise;
+      if (firebaseListenerStarted && firebaseFirstLoadPromise) return firebaseFirstLoadPromise;
+
       firebaseListenerStarted = true;
       firebaseFirstLoadPromise = new Promise((resolve, reject) => {
         let firstSnapshot = true;
-        firebaseRef.on('value', (snapshot) => {
+        firebaseValueHandler = snapshot => {
           try {
             applyFirebaseData(snapshot);
-            if (firstSnapshot) { firstSnapshot = false; resolve({success:true,data:snapshot.val()||{}}); }
+            if (firstSnapshot) {
+              firstSnapshot = false;
+              resolve({success:true,data:snapshot.val()||{}});
+            }
           } catch (error) {
             console.error('Error procesando datos de Firebase:', error);
-            if (firstSnapshot) { firstSnapshot=false; reject(error); }
+            if (firstSnapshot) {
+              firstSnapshot = false;
+              reject(error);
+            }
           }
-        }, (error) => {
+        };
+
+        firebaseRef.on('value', firebaseValueHandler, error => {
           console.error('Error en la conexión con Firebase Realtime Database:', error);
-          if (firstSnapshot) { firstSnapshot=false; reject(error); }
+          if (firstSnapshot) {
+            firstSnapshot = false;
+            firebaseListenerStarted = false;
+            firebaseFirstLoadPromise = null;
+            if (firebaseValueHandler) firebaseRef.off('value', firebaseValueHandler);
+            firebaseValueHandler = null;
+            reject(error);
+          }
         });
       });
-      return firebaseFirstLoadPromise;
+
+      try {
+        return await firebaseFirstLoadPromise;
+      } catch (error) {
+        firebaseListenerStarted = false;
+        firebaseFirstLoadPromise = null;
+        return { success:false, error:error?.message || String(error) };
+      }
     };
 
     window.saveDataToServer = async function() {
-      const localPayload = normalizeFirebasePayload({circles:window.availableCircles,users:window.circleUsers,admins:window.adminUsers,meetings:window.circleMeetings,deletedMeetings:window.deletedMeetingIds,audit:window.auditLogEntries});
+      const localPayload = normalizeFirebasePayload({
+        circles:window.availableCircles,
+        users:window.circleUsers,
+        admins:window.adminUsers,
+        meetings:window.circleMeetings,
+        deletedMeetings:window.deletedMeetingIds,
+        audit:window.auditLogEntries
+      });
+
       try {
+        await waitForFirebaseConnection();
+
         const base = lastFirebasePayload || {};
-        await firebaseRef.transaction((serverData) => {
-          const server = normalizeFirebasePayload(serverData || {});
-          const merged = cloneFirebaseData(server);
-          ['circles','users','admins','meetings','deletedMeetings','audit'].forEach(section => {
-            if (JSON.stringify(base[section] ?? []) !== JSON.stringify(localPayload[section] ?? [])) merged[section] = localPayload[section];
-          });
-          return merged;
+        const changes = {};
+        ['circles','users','admins','meetings','deletedMeetings','audit'].forEach(section => {
+          if (JSON.stringify(base[section] ?? []) !== JSON.stringify(localPayload[section] ?? [])) {
+            changes[section] = localPayload[section];
+          }
         });
-        lastFirebasePayload = cloneFirebaseData(localPayload);
-        // Firebase es la fuente principal de datos. No guardamos aquí toda
-        // la base en localStorage porque puede superar la cuota del navegador.
+
+        if (Object.keys(changes).length) {
+          // IMPORTANTE: no usamos transaction() en el nodo raíz. Cuando la
+          // conexión se corta, las transacciones pendientes pueden terminar
+          // con "Error: disconnect" y bloquear el guardado. update() conserva
+          // las secciones que no cambiaron y es suficiente para este modelo.
+          await firebaseRef.update(changes);
+          lastFirebasePayload = cloneFirebaseData({ ...base, ...changes });
+        }
+
         return {success:true};
       } catch (e) {
         console.error('Error al sincronizar con Firebase:', e);
-        window.showToast?.('Error de sincronización','No se pudo guardar en Firebase. Revisa tu conexión y las reglas de Realtime Database.','error');
-        return {success:false,error:e.message};
+        const message = String(e?.message || e || 'Error desconocido');
+        const friendly = /disconnect/i.test(message)
+          ? 'Firebase perdió la conexión durante el guardado. Se reintentará al recuperar la conexión.'
+          : message;
+        window.showToast?.('Error de sincronización', friendly, 'error');
+        return {success:false,error:message};
       }
     };
 
@@ -2807,10 +2893,18 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
             String(m.date || '').slice(0, 10) === dateStr &&
             String(m.circle || '').trim().toUpperCase() === circle.toUpperCase()
           );
+          const masterclassId = `MASTERCLASS-${dateStr}-${circle.replace(/[^a-zA-Z0-9]+/g, '-')}`;
+
+          // La eliminación guarda el ID en deletedMeetingIds para evitar que
+          // una sincronización lo regenere. Pero este botón es una acción
+          // explícita del Administrador: si pulsa CREAR, debe poder recrearla.
           if (duplicate) return;
+          window.deletedMeetingIds = (window.deletedMeetingIds || []).filter(
+            deletedId => String(deletedId) !== String(masterclassId)
+          );
 
           window.circleMeetings.push({
-            id: `MASTERCLASS-${dateStr}-${circle.replace(/[^a-zA-Z0-9]+/g, '-')}`,
+            id: masterclassId,
             title: 'MASTERCLASS',
             type: 'MASTERCLASS',
             circle,
@@ -2851,59 +2945,89 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.deleteMonthlyMasterclasses = async function() {
-      if (!window.isAdministrator()) { window.showToast("Acción Denegada", "Solo el Administrador puede eliminar las Masterclass del mes.", "error"); return; }
+      if (!window.isAdministrator()) {
+        window.showToast("Acción Denegada", "Solo el Administrador puede eliminar las Masterclass del mes.", "error");
+        return;
+      }
+
       const year = window.currentDate.getFullYear();
       const month = window.currentDate.getMonth();
+      const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
+      const activeCircles = getActiveCirclesForAutomation();
+      const targetIds = new Set();
 
-      // La eliminación de Masterclass es GLOBAL para el mes: no depende
-      // del círculo que esté seleccionado ni de una lista fija de círculos.
-      const targets = new Set();
-
-      window.circleMeetings.forEach(m => {
-        const type = String(m.type || '').trim().toUpperCase();
-        const title = String(m.title || '').trim().toUpperCase();
-        const circle = String(m.circle || '').trim();
-        const d = new Date(`${String(m.date || '').slice(0, 10)}T12:00:00`);
+      // Primero tomamos cualquier Masterclass que exista realmente en la base.
+      // Esto cubre registros antiguos, IDs manuales y círculos que ya no estén
+      // en la lista activa.
+      (window.circleMeetings || []).forEach(m => {
+        const type = String(m?.type || '').trim().toUpperCase();
+        const title = String(m?.title || '').trim().toUpperCase();
+        const dateStr = String(m?.date || '').slice(0, 10);
         const isMasterclass = type === 'MASTERCLASS' || title === 'MASTERCLASS' || title.includes('MASTERCLASS');
-
-        if (isMasterclass &&
-            d.getFullYear() === year &&
-            d.getMonth() === month) {
-          targets.add(String(m.id));
-        }
+        if (isMasterclass && dateStr.startsWith(monthPrefix)) targetIds.add(String(m.id));
       });
 
-      if (!targets.size) {
+      // Después generamos los IDs oficiales para TODOS los círculos activos y
+      // TODOS los viernes del mes. Así la eliminación es global aunque un
+      // dispositivo no haya cargado alguna de las reuniones todavía.
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = new Date(year, month, day);
+        if (d.getDay() !== 5) continue;
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        activeCircles.forEach(circle => {
+          targetIds.add(`MASTERCLASS-${dateStr}-${circle.replace(/[^a-zA-Z0-9]+/g, '-')}`);
+        });
+      }
+
+      // Solo confirmamos si hay Masterclass reales o IDs oficiales que puedan
+      // estar presentes. Si no hay ninguna, evitamos una eliminación vacía.
+      const existingTargets = new Set(
+        (window.circleMeetings || []).map(m => String(m?.id || ''))
+      );
+      const existingMasterclasses = [...targetIds].filter(id => existingTargets.has(id)).length;
+      if (!existingMasterclasses) {
         window.showToast('Sin Masterclass', `No hay Masterclass para eliminar en ${monthNames[month]} ${year}.`, 'info');
         return;
       }
 
-      if (!confirm(`¿Eliminar ${targets.size} Masterclass de ${monthNames[month]} ${year} en todos los círculos? Esta acción quitará también sus registros de asistencia.`)) return;
+      if (!confirm(`¿Eliminar las Masterclass de ${monthNames[month]} ${year} en TODOS los círculos? Esta acción quitará también sus registros de asistencia.`)) return;
 
       const beforeSnapshot = window.captureAuditSnapshot();
+      if (!Array.isArray(window.deletedMeetingIds)) window.deletedMeetingIds = [];
 
-      // Marcar TODOS los IDs eliminados para que Firebase no los vuelva a
-      // considerar existentes cuando se vuelva a crear el mes.
-      targets.forEach(id => {
-        if (!window.deletedMeetingIds.includes(String(id))) {
+      // Guardamos las tumbas de todos los IDs oficiales del mes y de todos los
+      // registros encontrados. Así una copia vieja de otro dispositivo no puede
+      // reaparecer por una actualización en tiempo real.
+      targetIds.forEach(id => {
+        if (id && !window.deletedMeetingIds.includes(String(id))) {
           window.deletedMeetingIds.push(String(id));
         }
       });
 
-      window.circleMeetings = window.circleMeetings.filter(m => !targets.has(String(m.id)));
+      window.circleMeetings = (window.circleMeetings || []).filter(m => {
+        const id = String(m?.id || '');
+        return !targetIds.has(id);
+      });
+
       window.logAuditAction({
         author: window.currentSessionUser?.name || 'Administrador',
         action: 'Eliminación Global de Masterclass',
-        details: `Se eliminaron ${targets.size} Masterclass de ${monthNames[month]} ${year} en todos los círculos activos.`
+        details: `Se eliminaron las Masterclass de ${monthNames[month]} ${year} en todos los círculos activos. Se protegieron ${targetIds.size} IDs contra reaparición.`
       }, beforeSnapshot);
 
-      await window.saveDataToServer();
+      const saveResult = await window.saveDataToServer();
+      if (!saveResult?.success) {
+        window.showToast('Error al eliminar', saveResult?.error || 'Firebase no confirmó la eliminación.', 'error');
+        return;
+      }
+
       window.renderCalendar();
       window.renderMonthlyReport();
       window.renderUserDirectory();
       window.renderAuditLogs();
       window.updateGlobalStats();
-      window.showToast('Masterclass eliminadas', `Se eliminaron ${targets.size} Masterclass del mes en todos los círculos.`, 'success');
+      window.showToast('Masterclass eliminadas', `Se eliminaron las Masterclass de ${monthNames[month]} en todos los círculos.`, 'success');
     };
 
     // Acta de Reunión
@@ -4411,7 +4535,6 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           return;
         }
 
-        // Firebase ya terminó de cargar: ahora sí buscamos la reunión del QR.
         window.checkPublicQrSession();
         return;
       }
