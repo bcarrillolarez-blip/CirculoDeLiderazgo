@@ -606,13 +606,13 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
             <span>+ Programar Reunión</span>
           </button>
 
-          <button
+          <button id="btnCreateMonthlyMasterclasses"
             onclick="window.createMonthlyMasterclasses()"
             class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer">
             🔵 MASTERCLASS DEL MES
           </button>
 
-          <button
+          <button id="btnDeleteMonthlyMasterclasses"
             onclick="window.deleteMonthlyMasterclasses()"
             class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold shadow-sm cursor-pointer">
             🗑️ Eliminar Masterclass
@@ -817,7 +817,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           <h2 class="text-base font-bold text-slate-900">Usuarios Administrativos y Roles de Acceso</h2>
           <p class="text-xs text-slate-500">Gestión de Administradores, Sub Administradores y Moderadores.</p>
         </div>
-        <button onclick="window.openNewAdminModal()" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold cursor-pointer">
+        <button id="btnNewAdmin" onclick="window.openNewAdminModal()" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold cursor-pointer">
           + Nuevo Usuario Administrativo
         </button>
       </div>
@@ -1403,6 +1403,25 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     ];
 
     window.currentSessionUser = null;
+
+    // ===== CONTROL DE PERMISOS ADMINISTRATIVOS =====
+    // Administrador: control total, incluyendo crear otros Administradores.
+    // Sub Administrador: solo opera dentro de los círculos asignados.
+    // Moderador: acceso estrictamente de solo lectura.
+    window.isAdministrator = function() {
+      return window.currentSessionUser?.role === "Administrador" || window.currentSessionUser?.role === "Superadministrador";
+    };
+    window.isModerator = function() {
+      return window.currentSessionUser?.role === "Moderador";
+    };
+    window.canModifySystem = function() {
+      return !window.isModerator();
+    };
+    window.canAccessCircle = function(circle) {
+      if (!circle) return false;
+      return window.getUserAllowedCircles(window.currentSessionUser).some(c => String(c).trim().toUpperCase() === String(circle).trim().toUpperCase());
+    };
+
     window.currentDate = new Date();
     window.currentOpenMeetingId = null;
     window.currentAuthAction = null;
@@ -1480,6 +1499,20 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.finalizeLoginSession = function() {
+
+      const role = window.currentSessionUser?.role;
+      const readOnly = role === "Moderador";
+      const adminOnly = role !== "Administrador" && role !== "Superadministrador";
+      ["btnNewAdmin"].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle("hidden", adminOnly); });
+      // Masterclass es una decisión GLOBAL del Administrador General.
+      // Sub Administradores y Moderadores no deben ver ni ejecutar sus controles.
+      ["btnCalendarNewMeeting","btnExcelImport","btnNewMember","btnExcelTemplate"].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle("hidden", readOnly); });
+      ["btnCreateMonthlyMasterclasses","btnDeleteMonthlyMasterclasses"].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle("hidden", adminOnly || readOnly); });
+      document.querySelectorAll("#tab-calendar button").forEach(btn => {
+        const txt=(btn.innerText||"").toLowerCase();
+        if((readOnly || adminOnly) && txt.includes("masterclass")) btn.classList.add("hidden");
+        if(readOnly && (txt.includes("programar") || txt.includes("eliminar"))) btn.classList.add("hidden");
+      });
       document.getElementById('authScreen').style.display = 'none';
       const embajadorAuth = document.getElementById('embajadorPortalAuthScreen');
       if (embajadorAuth) embajadorAuth.style.display = 'none';
@@ -1754,17 +1787,20 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       if (user.role === "Administrador" || user.role === "Superadministrador") return [...window.availableCircles];
       
       const scope = user.circleScope;
-      if (!scope) return [...window.availableCircles];
-      
+      // Un Sub Administrador sin círculos asignados NO obtiene acceso global.
+      if (!scope) return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
+
       if (Array.isArray(scope)) {
-        if (scope.includes("Todos los Círculos") || scope.length === 0) return [...window.availableCircles];
+        if (scope.includes("Todos los Círculos")) return [...window.availableCircles];
+        if (scope.length === 0) return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
         return scope;
       }
       if (typeof scope === 'string') {
-        if (scope === "Todos los Círculos" || scope === "") return [...window.availableCircles];
+        if (scope === "Todos los Círculos") return [...window.availableCircles];
+        if (scope === "") return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
         return [scope];
       }
-      return [...window.availableCircles];
+      return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
     };
 
     window.updateGlobalStats = function() {
@@ -2329,6 +2365,9 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const badgeA = document.getElementById('badge-admins-count');
       if (badgeA) badgeA.innerText = (window.adminUsers || []).length;
 
+      const canManageAdmins = window.isAdministrator();
+      const canSeePins = window.isAdministrator();
+
       (window.adminUsers || []).forEach(a => {
         const allowed = window.getUserAllowedCircles(a);
         let scopeHtml = '';
@@ -2336,8 +2375,20 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         if (a.role === "Administrador" || allowed.length === window.availableCircles.length) {
           scopeHtml = '<span class="px-2 py-0.5 text-xs font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">🌐 Todos los Círculos</span>';
         } else {
-          scopeHtml = allowed.map(c => `<span class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 text-slate-700 border border-slate-200 mr-1 mb-1">🏷️ ${c}</span>`).join('');
+          scopeHtml = allowed.length
+            ? allowed.map(c => `<span class="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 text-slate-700 border border-slate-200 mr-1 mb-1">🏷️ ${c}</span>`).join('')
+            : '<span class="text-xs text-slate-400">Sin círculos asignados</span>';
         }
+
+        const pinHtml = canSeePins
+          ? `<span class="font-mono text-xs">•••• (${a.pin || ''})</span>`
+          : '<span class="text-xs font-semibold text-slate-400">🔒 Oculto</span>';
+
+        const actionHtml = canManageAdmins
+          ? (a.id !== 'ADM-001'
+              ? `<button onclick="window.promptDeleteAdmin('${a.id}')" class="text-xs text-rose-600 hover:underline cursor-pointer">Revocar</button>`
+              : '<span class="text-xs text-slate-400 font-semibold">Principal</span>')
+          : '<span class="text-xs text-slate-400 font-semibold">Solo Lectura</span>';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -2348,14 +2399,14 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           <td class="px-4 py-3.5"><span class="px-2 py-0.5 text-xs font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">${a.role}</span></td>
           <td class="px-4 py-3.5 max-w-xs">${scopeHtml}</td>
           <td class="px-4 py-3.5 text-xs">${a.email}</td>
-          <td class="px-4 py-3.5 font-mono text-xs">•••• (${a.pin})</td>
-          <td class="px-4 py-3.5 text-right">
-            ${a.id !== 'ADM-001' ? `<button onclick="window.promptDeleteAdmin('${a.id}')" class="text-xs text-rose-600 hover:underline cursor-pointer">Revocar</button>` : '<span class="text-xs text-slate-400 font-semibold">Principal</span>'}
-          </td>
+          <td class="px-4 py-3.5">${pinHtml}</td>
+          <td class="px-4 py-3.5 text-right">${actionHtml}</td>
         `;
         tbody.appendChild(tr);
       });
 
+      const createBtn = document.getElementById('btnNewAdmin');
+      if (createBtn) createBtn.classList.toggle('hidden', !canManageAdmins);
       window.updateGlobalStats();
     };
 
@@ -2583,6 +2634,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     // Añadir Círculo
     window.openAddCircleModal = function(targetSelectId = '') {
+      if (!window.isAdministrator()) { window.showToast('Acción Denegada','Solo el Administrador puede crear círculos.', 'error'); return; }
       document.getElementById('targetCircleSelectId').value = targetSelectId;
       document.getElementById('newCircleNameInput').value = '';
       window.showModal('addCircleModal');
@@ -2594,6 +2646,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.handleCreateCircle = function(event) {
       if (event) event.preventDefault();
+      if (!window.isAdministrator()) { window.showToast("Acción Denegada", "Solo el Administrador puede crear círculos.", "error"); return; }
       const nameInput = document.getElementById('newCircleNameInput');
       const targetSelectId = document.getElementById('targetCircleSelectId').value;
       const newName = (nameInput?.value || '').trim().toUpperCase();
@@ -2605,6 +2658,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         return;
       }
 
+      if (!window.canAccessCircle(circle)) { window.showToast('Acción Denegada','No puedes mover miembros fuera de tus círculos asignados.','error'); return; }
       const beforeSnapshot = window.captureAuditSnapshot();
 
       window.availableCircles.push(newName);
@@ -2626,6 +2680,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     // Eliminar Círculo
     window.promptDeleteCircle = async function(circleName) {
+      if (!window.isAdministrator()) { window.showToast("Acción Denegada", "Solo el Administrador puede eliminar círculos.", "error"); return; }
       const selectedCircle = circleName || document.getElementById('userCircleFilter')?.value || document.getElementById('circleFilter')?.value;
       
       if (!selectedCircle) {
@@ -2673,14 +2728,16 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       else{titleEl.value='';titleEl.readOnly=false;}
     };
     window.openNewMeetingModal=function(){
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const today=new Date().toISOString().split('T')[0];document.getElementById('newMeetTitle').value='';document.getElementById('newMeetTitle').readOnly=false;document.getElementById('newMeetDate').value=today;document.getElementById('newMeetTime').value='09:00';document.getElementById('newMeetLocation').value='Sala Magna / Enlace Virtual';
       const typeEl=document.getElementById('newMeetType');if(typeEl)typeEl.value='CIRCULO DE LIDERAZGO';if(window.currentSessionUser)document.getElementById('newMeetHost').value=window.currentSessionUser.name;window.populateCircleDropdowns();setTimeout(()=>window.handleMeetingTypeChange(document.getElementById('newMeetType')),0);window.showModal('newMeetingModal');
     };
     window.closeNewMeetingModal=function(){window.hideModal('newMeetingModal');};
     window.handleCreateMeeting=async function(event){
       if(event)event.preventDefault();
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const requestedType=String(document.getElementById('newMeetType')?.value||'ORDINARIA').trim().toUpperCase(),titleInput=document.getElementById('newMeetTitle').value.trim(),circle=document.getElementById('newMeetCircle').value,host=document.getElementById('newMeetHost').value.trim(),date=document.getElementById('newMeetDate').value,selectedTime=document.getElementById('newMeetTime').value,location=document.getElementById('newMeetLocation').value.trim();
-      if(!circle||!date){window.showToast('Campos Requeridos','Complete todos los campos obligatorios.','error');return;}
+      if (!window.canAccessCircle(circle)) { window.showToast('Acción Denegada','No puedes programar reuniones fuera de tus círculos asignados.','error'); return; }if(!circle||!date){window.showToast('Campos Requeridos','Complete todos los campos obligatorios.','error');return;}
       const days=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];let autoType=requestedType,finalTitle=titleInput,finalTime=selectedTime,endTime='';const leadership=getLeadershipSchedule(circle);
       if(requestedType==='CIRCULO DE LIDERAZGO'){if(!leadership){window.showToast('Horario no configurado','El círculo seleccionado no tiene un horario oficial.','error');return;}const dow=new Date(`${date}T12:00:00`).getDay();if(dow!==leadership.day){window.showToast('Fecha no válida',`Este círculo se reúne el ${days[leadership.day]}.`,'error');return;}finalTitle=`${formatTime12(leadership.time)} - ${formatTime12(leadership.endTime)}`;finalTime=leadership.time;endTime=leadership.endTime;}
       else if(['HEALTH','MENTORIA','MASTERCLASS'].includes(requestedType)){const cfg=FIXED_SESSION_SCHEDULES[requestedType],dow=new Date(`${date}T12:00:00`).getDay();if(dow!==cfg.day){window.showToast('Fecha no válida',`${cfg.title} está programado para el ${days[cfg.day]}.`,'error');return;}finalTitle=cfg.title;finalTime=cfg.time;endTime=cfg.endTime;}
@@ -2709,6 +2766,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     }
 
     window.createMonthlyMasterclasses = async function() {
+      if (!window.isAdministrator()) { window.showToast("Acción Denegada", "Solo el Administrador puede crear las Masterclass del mes.", "error"); return; }
       const year = window.currentDate.getFullYear();
       const month = window.currentDate.getMonth();
 
@@ -2788,6 +2846,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.deleteMonthlyMasterclasses = async function() {
+      if (!window.isAdministrator()) { window.showToast("Acción Denegada", "Solo el Administrador puede eliminar las Masterclass del mes.", "error"); return; }
       const year = window.currentDate.getFullYear();
       const month = window.currentDate.getMonth();
 
@@ -2865,6 +2924,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     // Eliminar Sesión Individual
     window.promptDeleteMeeting = async function(meetingId) {
+      if (window.isModerator()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const targetId = meetingId || window.currentOpenMeetingId;
       if (!targetId) return;
 
@@ -2875,6 +2935,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(targetId));
       if (!meeting) return;
+
+      if (!window.canAccessCircle(meeting.circle)) { window.showToast('Acción Denegada','No puedes eliminar sesiones fuera de tus círculos asignados.','error'); return; }
 
       if (!confirm(`¿Estás seguro de eliminar la sesión "${meeting.title}" (${meeting.circle} - ${meeting.date})?`)) {
         return;
@@ -3127,6 +3189,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.setQrQuickTimer = function(minutes = 10) {
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
       if (!meeting) return;
 
@@ -3157,6 +3220,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.applyCustomQrSchedule = function() {
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const meeting = (window.circleMeetings || []).find(m => String(m.id) === String(window.currentOpenMeetingId));
       if (!meeting) return;
 
@@ -3250,6 +3314,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.executeAttendanceChange = function(event) {
+      if (window.isModerator()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       if (event) event.preventDefault();
       const target = window.currentAttendanceTarget;
       if (!target) return;
@@ -3304,6 +3369,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     // CRUD de Miembros
     window.openNewUserModal = function() {
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       document.getElementById('newUserDoc').value = '';
       document.getElementById('newUserName').value = '';
       document.getElementById('newUserJob').value = '';
@@ -3319,6 +3385,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.handleRegisterUser = function(event) {
       if (event) event.preventDefault();
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const doc = document.getElementById('newUserDoc').value.trim();
       const name = document.getElementById('newUserName').value.trim();
       const circle = document.getElementById('newUserCircle').value;
@@ -3326,6 +3393,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const email = document.getElementById('newUserEmail').value.trim();
       const phone = document.getElementById('newUserPhone').value.trim();
 
+      if (!window.canAccessCircle(circle)) { window.showToast('Acción Denegada','No puedes registrar miembros fuera de tus círculos asignados.','error'); return; }
       if (!doc || !name || !circle || !email) {
         window.showToast("Campos Requeridos", "Complete todos los campos obligatorios.", "error");
         return;
@@ -3365,6 +3433,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.openEditUserModal = function(userId) {
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const user = (window.circleUsers || []).find(u => u.id === userId);
       if (!user) return;
 
@@ -3384,6 +3453,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.handleUpdateUser = function(event) {
       if (event) event.preventDefault();
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const id = document.getElementById('editUserId').value;
       const doc = document.getElementById('editUserDoc').value.trim();
       const name = document.getElementById('editUserName').value.trim();
@@ -3395,6 +3465,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const user = (window.circleUsers || []).find(u => u.id === id);
       if (!user) return;
 
+      if (!window.canAccessCircle(user.circle) || !window.canAccessCircle(circle)) { window.showToast('Acción Denegada','No puedes modificar miembros fuera de tus círculos asignados.','error'); return; }
       const beforeSnapshot = window.captureAuditSnapshot();
 
       user.doc = doc;
@@ -3418,6 +3489,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.promptDeleteUser = function(userId) {
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
+      if (!window.canAccessCircle((window.circleUsers || []).find(u => u.id === userId)?.circle)) { window.showToast("Acción Denegada", "No puedes modificar miembros fuera de tus círculos asignados.", "error"); return; }
       if (!confirm("¿Está seguro de eliminar este miembro del sistema?")) return;
       const user = (window.circleUsers || []).find(u => u.id === userId);
       const beforeSnapshot = window.captureAuditSnapshot();
@@ -3435,6 +3508,10 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     // CRUD de Administradores
     window.openNewAdminModal = function() {
+      if (!window.isAdministrator()) {
+        window.showToast("Acción Denegada", "Solo el Administrador puede crear usuarios administrativos.", "error");
+        return;
+      }
       document.getElementById('newAdminDoc').value = '';
       document.getElementById('newAdminName').value = '';
       document.getElementById('newAdminEmail').value = '';
@@ -3451,6 +3528,10 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.handleRegisterAdmin = function(event) {
       if (event) event.preventDefault();
+      if (!window.isAdministrator()) {
+        window.showToast("Acción Denegada", "Solo el Administrador puede crear usuarios administrativos.", "error");
+        return;
+      }
       const doc = document.getElementById('newAdminDoc').value.trim();
       const name = document.getElementById('newAdminName').value.trim();
       const role = document.getElementById('newAdminRole').value;
@@ -3471,20 +3552,12 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       }
 
       const beforeSnapshot = window.captureAuditSnapshot();
-
       const newAdmin = {
-        id: 'ADM-' + Date.now(),
-        doc,
-        name,
-        email,
-        pin,
-        role,
-        circleScope,
+        id: 'ADM-' + Date.now(), doc, name, email, pin, role, circleScope,
         createdAt: new Date().toISOString()
       };
 
       window.adminUsers.push(newAdmin);
-
       window.logAuditAction({
         author: window.currentSessionUser?.name || 'Administrador',
         action: 'Creó Usuario Administrativo',
@@ -3499,10 +3572,21 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.promptDeleteAdmin = function(adminId) {
-      if (!confirm("¿Revocar acceso administrativo a este usuario?")) return;
+      if (!window.isAdministrator()) {
+        window.showToast("Acción Denegada", "Solo el Administrador puede eliminar usuarios administrativos.", "error");
+        return;
+      }
+      if (adminId === 'ADM-001') {
+        window.showToast("Acción Denegada", "El Administrador principal no puede ser eliminado.", "error");
+        return;
+      }
+      const target = (window.adminUsers || []).find(a => a.id === adminId);
+      if (!target) return;
+      if (!confirm(`¿Revocar acceso administrativo a ${target.name}?`)) return;
       window.adminUsers = (window.adminUsers || []).filter(a => a.id !== adminId);
       window.saveDataToServer();
       window.renderAdminDirectory();
+      window.renderAuditLogs();
       window.showToast("Acceso Revocado", "El usuario administrativo ha sido eliminado.", "info");
     };
 
@@ -3654,6 +3738,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.processExcelBatchImport = function() {
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       if (!window.parsedExcelUsers || window.parsedExcelUsers.length === 0) return;
 
       const targetSelect = document.getElementById('excelImportTargetCircle');
@@ -3661,6 +3746,11 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       if (!targetCircle || targetCircle === '__ADD_NEW__' || !window.availableCircles.includes(targetCircle)) {
         window.showToast("Falta el Círculo Destino", "Selecciona a qué círculo pertenecen los nuevos miembros antes de importar.", "error");
+        return;
+      }
+
+      if (!window.canAccessCircle(targetCircle)) {
+        window.showToast("Acción Denegada", "No puedes importar miembros fuera de tus círculos asignados.", "error");
         return;
       }
 
@@ -3675,6 +3765,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           : null;
 
         if (existing) {
+          if (!window.canAccessCircle(existing.circle)) return;
           let touched = false;
           if (!String(existing.name || '').trim() && u.name) { existing.name = u.name; touched = true; }
           if (!String(existing.job || '').trim() && u.job) { existing.job = u.job; touched = true; }
@@ -3935,6 +4026,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     }
 
     window.processZoomAttendance = async function() {
+      if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const type = document.getElementById('zoomSessionType')?.value || '';
       const directoryMembers = Array.isArray(window.circleUsers)
         ? window.circleUsers.filter(u => u && String(u.circle || '').trim())
