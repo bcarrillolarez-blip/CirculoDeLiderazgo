@@ -36,6 +36,9 @@
   
   <!-- SheetJS para Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Exportación del Reporte Mensual -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <!-- Firebase SDKs (Compat para HTML) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -63,6 +66,18 @@
     .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
     #qrcode img { margin: 0 auto; border-radius: 12px; padding: 6px; background: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
   </style>
+
+<style id="circle-admin-hidden-modules">
+/* ===== VISTA ADMINISTRADOR DE CÍRCULO =====
+   Estos módulos no deben existir visualmente para este rol.
+   El Administrador General sí conserva ambos. */
+body.circle-admin-view #btn-tab-admins,
+body.circle-admin-view #btn-tab-audit,
+body.circle-admin-view #tab-admins,
+body.circle-admin-view #tab-audit {
+  display: none !important;
+}
+</style>
 
 <style id="corporate-final-theme">
 /* ===== CÍRCULOS CONNECT · ESTILO CORPORATIVO FINAL =====
@@ -169,6 +184,537 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 ::selection{background:#2457c5!important;color:#fff!important;}
 </style>
 
+<style id="admin-avatar-menu-v1">
+/* ===== MENÚ DEL ADMINISTRADOR PRINCIPAL ===== */
+.admin-profile-wrap{
+  position:relative;
+}
+.admin-avatar-button{
+  width:40px!important;
+  height:40px!important;
+  padding:0!important;
+  border-radius:9999px!important;
+  border:1px solid #cbd5e1!important;
+  background:#e8eefb!important;
+  color:#23447d!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  font-size:13px!important;
+  font-weight:800!important;
+  cursor:pointer!important;
+  transition:transform .15s ease, box-shadow .15s ease, background .15s ease!important;
+}
+.admin-avatar-button:hover{
+  background:#dce6f8!important;
+  transform:translateY(-1px)!important;
+  box-shadow:0 4px 12px rgba(15,23,42,.10)!important;
+}
+.admin-avatar-button:focus-visible{
+  outline:2px solid #2563eb!important;
+  outline-offset:2px!important;
+}
+.admin-avatar-menu{
+  position:absolute!important;
+  top:calc(100% + 10px)!important;
+  right:0!important;
+  width:205px!important;
+  padding:6px!important;
+  background:#fff!important;
+  border:1px solid #e2e8f0!important;
+  border-radius:12px!important;
+  box-shadow:0 14px 35px rgba(15,23,42,.16)!important;
+  z-index:80!important;
+  transform-origin:top right!important;
+}
+.admin-avatar-menu.hidden{
+  display:none!important;
+}
+.admin-avatar-menu-item{
+  width:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  padding:9px 10px!important;
+  border:0!important;
+  border-radius:8px!important;
+  background:transparent!important;
+  color:#334155!important;
+  font-size:12px!important;
+  font-weight:600!important;
+  text-align:left!important;
+  cursor:pointer!important;
+}
+.admin-avatar-menu-item:hover{
+  background:#f1f5f9!important;
+  color:#0f172a!important;
+}
+.admin-avatar-menu-item .menu-icon{
+  width:28px!important;
+  height:28px!important;
+  border-radius:7px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:#f8fafc!important;
+  border:1px solid #e2e8f0!important;
+  font-size:13px!important;
+}
+.admin-avatar-menu-divider{
+  height:1px!important;
+  margin:5px 4px!important;
+  background:#e2e8f0!important;
+}
+.admin-avatar-menu-title{
+  padding:5px 10px 6px!important;
+  color:#94a3b8!important;
+  font-size:9px!important;
+  font-weight:800!important;
+  text-transform:uppercase!important;
+  letter-spacing:.06em!important;
+}
+</style>
+
+<style id="monthly-report-export-v1">
+/* ===== DESCARGAS DEL REPORTE MENSUAL ===== */
+.monthly-report-downloads{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.monthly-report-download-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:7px!important;
+  min-height:38px!important;
+  padding:8px 13px!important;
+  border-radius:9px!important;
+  font-size:11px!important;
+  font-weight:800!important;
+  cursor:pointer!important;
+  transition:transform .15s ease, box-shadow .15s ease, background .15s ease!important;
+}
+.monthly-report-download-btn:hover{
+  transform:translateY(-1px)!important;
+  box-shadow:0 5px 14px rgba(15,23,42,.10)!important;
+}
+.monthly-report-download-btn:active{
+  transform:translateY(0)!important;
+}
+.monthly-report-download-pdf{
+  background:#0b1736!important;
+  color:#fff!important;
+  border:1px solid #0b1736!important;
+}
+.monthly-report-download-pdf:hover{
+  background:#142653!important;
+}
+.monthly-report-download-excel{
+  background:#ecfdf5!important;
+  color:#047857!important;
+  border:1px solid #86efac!important;
+}
+.monthly-report-download-excel:hover{
+  background:#d1fae5!important;
+}
+
+/* Área que se captura para PDF. Conserva los colores y estructura del reporte. */
+#monthlyReportExportArea{
+  background:#f8fafc;
+  padding:2px;
+}
+#monthlyReportExportArea #reportSummaryCards{
+  margin-bottom:0;
+}
+</style>
+
+<style id="monthly-report-toolbar-v2">
+/* ===== BARRA DEL REPORTE MENSUAL ===== */
+.monthly-report-toolbar{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.monthly-report-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+}
+.monthly-report-month{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+.monthly-report-title{
+  width:300px;
+  text-align:center;
+  flex:0 0 300px;
+}
+.monthly-report-title h2{
+  margin:0;
+  color:#0f172a;
+  font-size:18px;
+  line-height:1.2;
+  font-weight:800;
+  white-space:nowrap;
+}
+.monthly-report-title p{
+  margin:4px 0 0;
+  color:#64748b;
+  font-size:10px;
+  line-height:1.2;
+  white-space:nowrap;
+}
+.monthly-report-today{
+  min-height:36px;
+  padding:0 13px;
+  border:0;
+  border-radius:8px;
+  background:#f1f5f9;
+  color:#475569;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.monthly-report-today:hover{background:#e2e8f0;}
+.monthly-report-downloads{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+.monthly-report-download-btn{
+  min-height:40px!important;
+  padding:8px 14px!important;
+  border-radius:9px!important;
+  font-size:11px!important;
+}
+.monthly-report-filters{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  border-top:1px solid #f1f5f9;
+  padding-top:10px;
+}
+.monthly-report-filter-group{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.monthly-report-filter-label{
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:#94a3b8;
+  margin-right:2px;
+}
+.monthly-report-search,
+.monthly-report-select{
+  height:36px;
+  padding:0 11px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fff;
+  color:#334155;
+  font-size:11px;
+  font-weight:600;
+  outline:none;
+}
+.monthly-report-search{width:230px;}
+.monthly-report-select{width:205px;}
+.monthly-report-search:focus,
+.monthly-report-select:focus{
+  border-color:#94a3b8;
+  box-shadow:0 0 0 2px rgba(37,99,235,.08);
+}
+@media(max-width:1000px){
+  .monthly-report-top{align-items:flex-start;flex-direction:column;}
+  .monthly-report-downloads{width:100%;}
+  .monthly-report-download-btn{flex:1;}
+}
+@media(max-width:640px){
+  .monthly-report-month{width:100%;justify-content:center;}
+  .monthly-report-title{width:auto;flex:1;min-width:0;}
+  .monthly-report-title h2{font-size:15px;white-space:normal;}
+  .monthly-report-title p{white-space:normal;}
+  .monthly-report-filters,.monthly-report-filter-group{width:100%;flex-direction:column;align-items:stretch;}
+  .monthly-report-filter-label{margin:0;}
+  .monthly-report-search,.monthly-report-select{width:100%;}
+  .monthly-report-downloads{flex-direction:column;}
+  .monthly-report-download-btn{width:100%;flex:none;}
+}
+</style>
+
+<style id="monthly-report-layout-final-v1">
+.monthly-report-top{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:18px!important;
+  min-width:0!important;
+}
+.monthly-report-month{
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+  min-width:0!important;
+  flex:1 1 auto!important;
+}
+.monthly-report-title{
+  min-width:0!important;
+  flex:0 1 auto!important;
+}
+.monthly-report-title h2{
+  white-space:nowrap!important;
+  font-size:18px!important;
+  line-height:1.2!important;
+}
+.monthly-report-title p{
+  white-space:nowrap!important;
+  margin-top:3px!important;
+}
+.monthly-report-downloads{
+  flex:0 0 auto!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  flex-wrap:nowrap!important;
+}
+.monthly-report-table-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:18px!important;
+  padding:13px 16px!important;
+  border-bottom:1px solid #e2e8f0!important;
+}
+.monthly-report-table-title{
+  min-width:0!important;
+  flex:1 1 auto!important;
+}
+.monthly-report-table-title h3{
+  white-space:nowrap!important;
+}
+.monthly-report-controls{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:8px!important;
+  flex:0 0 auto!important;
+}
+.monthly-report-search{
+  width:215px!important;
+  height:38px!important;
+  padding:8px 11px!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:8px!important;
+  background:#fff!important;
+  color:#334155!important;
+  font-size:11px!important;
+  outline:none!important;
+}
+.monthly-report-search:focus{
+  border-color:#94a3b8!important;
+  box-shadow:0 0 0 2px rgba(148,163,184,.16)!important;
+}
+.monthly-report-select{
+  width:205px!important;
+  height:38px!important;
+  padding:8px 30px 8px 11px!important;
+  border:1px solid #cbd5e1!important;
+  border-radius:8px!important;
+  background:#fff!important;
+  color:#334155!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  outline:none!important;
+}
+.monthly-report-select:focus{
+  border-color:#94a3b8!important;
+  box-shadow:0 0 0 2px rgba(148,163,184,.16)!important;
+}
+.monthly-report-legend{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:6px!important;
+  padding:7px 16px!important;
+  border-bottom:1px solid #f1f5f9!important;
+  background:#fff!important;
+}
+.monthly-report-legend span{font-size:9px!important;}
+.monthly-report-month .nav-arrow-btn{flex:0 0 42px!important;}
+@media (max-width:1050px){
+  .monthly-report-top{gap:10px!important;}
+  .monthly-report-title h2{font-size:16px!important;}
+  .monthly-report-title p{font-size:10px!important;}
+  .monthly-report-search{width:185px!important;}
+  .monthly-report-select{width:185px!important;}
+}
+@media (max-width:760px){
+  .monthly-report-top{flex-direction:column!important;align-items:stretch!important;}
+  .monthly-report-month{justify-content:center!important;width:100%!important;}
+  .monthly-report-title{text-align:center!important;}
+  .monthly-report-title h2{white-space:normal!important;}
+  .monthly-report-title p{white-space:normal!important;}
+  .monthly-report-downloads{justify-content:center!important;}
+  .monthly-report-table-head{flex-direction:column!important;align-items:stretch!important;}
+  .monthly-report-table-title h3{white-space:normal!important;}
+  .monthly-report-controls{justify-content:stretch!important;}
+  .monthly-report-search,.monthly-report-select{flex:1 1 50%!important;width:auto!important;}
+  .monthly-report-legend{justify-content:flex-start!important;flex-wrap:wrap!important;}
+}
+</style>
+
+<style id="directory-layout-v1">
+/* ===== DIRECTORIO DE MIEMBROS: DISEÑO COMPACTO ===== */
+#tab-users table{
+  table-layout:auto;
+  width:100%;
+}
+#tab-users .directory-col-dni{
+  width:1%;
+  white-space:nowrap;
+}
+#tab-users .directory-col-user{
+  min-width:180px;
+  white-space:nowrap;
+}
+#tab-users .directory-col-circle{
+  width:1%;
+  white-space:nowrap;
+}
+#tab-users .directory-col-rank{
+  width:1%;
+  white-space:nowrap;
+}
+#tab-users .directory-col-contact{
+  min-width:210px;
+  white-space:nowrap;
+}
+#tab-users .directory-col-actions{
+  width:1%;
+  white-space:nowrap;
+}
+#tab-users .directory-circle-badge{
+  display:inline-block;
+  white-space:nowrap;
+}
+
+/* En pantallas pequeñas permitimos scroll horizontal en lugar de romper
+   Usuario y Círculo en varias líneas. */
+@media (max-width:900px){
+  #tab-users .directory-col-user{min-width:160px;}
+  #tab-users .directory-col-contact{min-width:180px;}
+}
+</style>
+
+<style id="navigation-arrows-circle-v1">
+/* Flechas compactas: mismo estilo circular, pero proporcionadas al encabezado. */
+.nav-arrow-btn{
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  min-height:42px!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:50%!important;
+  background:#050505!important;
+  color:#fff!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex:0 0 42px!important;
+  box-shadow:none!important;
+  cursor:pointer!important;
+  transition:transform .16s ease, background .16s ease!important;
+  vertical-align:middle!important;
+}
+.nav-arrow-btn:hover{
+  background:#111!important;
+  transform:scale(1.04)!important;
+}
+.nav-arrow-btn:active{
+  transform:scale(.97)!important;
+}
+
+/* Chevron más pequeño y centrado dentro del círculo. */
+.nav-arrow-icon{
+  width:12px!important;
+  height:12px!important;
+  display:block!important;
+  border-top:4px solid #fff!important;
+  border-right:4px solid #fff!important;
+  border-radius:1px!important;
+  position:relative!important;
+  left:0!important;
+  top:0!important;
+}
+.nav-arrow-left .nav-arrow-icon{
+  transform:rotate(-135deg)!important;
+  margin-left:4px!important;
+}
+.nav-arrow-right .nav-arrow-icon{
+  transform:rotate(45deg)!important;
+  margin-right:4px!important;
+}
+
+/* Mantener el botón centrado respecto al contenido del encabezado. */
+.nav-arrow-btn + *{
+  vertical-align:middle!important;
+}
+
+/* En móvil, reducir un poco más sin perder el aspecto circular. */
+@media (max-width:640px){
+  .nav-arrow-btn{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    flex-basis:38px!important;
+  }
+  .nav-arrow-icon{
+    width:11px!important;
+    height:11px!important;
+    border-width:3.5px!important;
+  }
+}
+</style>
+
+<style id="calendar-visual-polish-v1">
+/* El diseño de las flechas ahora está centralizado en navigation-arrows-circle-v1. */
+</style>
+
+<style id="calendar-report-color-system-v2">
+/* Solo ajuste visual solicitado: paleta unificada Calendario + Reporte Mensual. */
+#tab-calendar .cc-anuncios-cell{
+  background:rgba(11,23,54,.075)!important;
+}
+#tab-calendar .cc-anuncios-cell-badge{
+  background:#0b1736!important;
+  border-color:#0b1736!important;
+  color:#fff!important;
+}
+#tab-calendar .cc-anuncios-event{
+  background:#0b1736!important;
+  border-color:#102657!important;
+  color:#fff!important;
+}
+#tab-calendar .cc-anuncios-event:hover{
+  filter:brightness(1.12)!important;
+}
+#monthlyReportTable .cc-report-anuncios{
+  background:#0b1736!important;
+  color:#fff!important;
+}
+</style>
 
 <style id="corporate-tab-animations">
 /* Transición suave entre módulos */
@@ -195,26 +741,9 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
  #mainAppNav .tab-btn:after{transition:none!important;}
 }
 </style>
-<script id="corporate-tab-animation-script">
-(function(){
-  const original=window.switchTab;
-  if(typeof original!=="function") return;
-  const order=["tab-calendar","tab-report","tab-zoom","tab-users","tab-admins","tab-audit"];
-  window.switchTab=function(id){
-    const target=document.getElementById(id);
-    const current=document.querySelector(".tab-content:not(.hidden)");
-    const a=current?order.indexOf(current.id):-1,b=order.indexOf(id);
-    original(id);
-    document.querySelectorAll(".tab-content").forEach(e=>e.classList.remove("cc-tab-enter","cc-tab-left","cc-tab-right"));
-    if(!target)return;
-    const dir=(a>=0&&b>=0&&b<a)?"cc-tab-left":"cc-tab-right";
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      target.classList.add("cc-tab-enter",dir);
-      setTimeout(()=>target.classList.remove("cc-tab-enter",dir),460);
-    }));
-  };
-})();
-</script>
+
+
+
 
 
 <style id="zoom-visual-enhancement">
@@ -317,6 +846,724 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     transform: translateY(-2px);
     box-shadow: 0 8px 18px rgba(15, 23, 42, .07);
   }
+</style>
+
+
+<style id="monthly-report-layout-definitive-v2">
+/* ==========================================================
+   REPORTE MENSUAL — CABECERA DEFINITIVA
+   ========================================================== */
+
+.monthly-report-toolbar{
+  position:relative!important;
+}
+
+/* Fila superior: navegación a la izquierda + descargas a la derecha */
+.monthly-report-top{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  column-gap:24px!important;
+  width:100%!important;
+}
+
+/* Zona de mes: reservamos suficiente espacio para que el título
+   jamás quede debajo de las flechas. */
+.monthly-report-month{
+  display:grid!important;
+  grid-template-columns:42px minmax(260px,1fr) 42px auto!important;
+  align-items:center!important;
+  column-gap:10px!important;
+  min-width:0!important;
+  width:100%!important;
+}
+
+.monthly-report-title{
+  min-width:0!important;
+  width:100%!important;
+  text-align:center!important;
+  overflow:visible!important;
+}
+
+.monthly-report-title h2{
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  font-size:18px!important;
+  line-height:22px!important;
+  margin:0!important;
+}
+
+.monthly-report-title p{
+  white-space:nowrap!important;
+  overflow:visible!important;
+  margin:3px 0 0!important;
+  font-size:10px!important;
+  line-height:14px!important;
+}
+
+/* Flechas compactas y perfectamente centradas */
+.monthly-report-month .nav-arrow-btn{
+  width:42px!important;
+  height:42px!important;
+  min-width:42px!important;
+  min-height:42px!important;
+  flex:0 0 42px!important;
+  margin:0!important;
+}
+
+/* "Hoy" queda como cuarto elemento de la zona izquierda,
+   separado de la flecha para que nunca choque con ella. */
+.monthly-report-today{
+  height:34px!important;
+  min-width:48px!important;
+  padding:0 11px!important;
+  margin:0!important;
+  border-radius:8px!important;
+  white-space:nowrap!important;
+  flex:0 0 auto!important;
+}
+
+/* Descargas: bloque independiente a la derecha */
+.monthly-report-downloads{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:8px!important;
+  flex-wrap:nowrap!important;
+  white-space:nowrap!important;
+  flex:0 0 auto!important;
+}
+
+.monthly-report-download-btn{
+  height:38px!important;
+  min-height:38px!important;
+  white-space:nowrap!important;
+  padding:0 13px!important;
+}
+
+/* ==========================================================
+   CONTROLES DEL REGISTRO GENERAL
+   Buscar + círculo quedan juntos y alineados.
+   ========================================================== */
+
+.monthly-report-table-head{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  column-gap:18px!important;
+  padding:12px 16px!important;
+}
+
+.monthly-report-table-title{
+  min-width:0!important;
+}
+
+.monthly-report-table-title h3{
+  white-space:nowrap!important;
+  margin:0!important;
+}
+
+.monthly-report-table-title p{
+  white-space:nowrap!important;
+  margin:3px 0 0!important;
+}
+
+.monthly-report-controls{
+  display:grid!important;
+  grid-template-columns:215px 205px!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:auto!important;
+}
+
+.monthly-report-search{
+  width:215px!important;
+  height:38px!important;
+  box-sizing:border-box!important;
+}
+
+.monthly-report-select{
+  width:205px!important;
+  height:38px!important;
+  box-sizing:border-box!important;
+}
+
+/* Leyenda debajo, discreta y alineada a la derecha */
+.monthly-report-legend{
+  display:flex!important;
+  justify-content:flex-end!important;
+  align-items:center!important;
+  gap:6px!important;
+  padding:6px 16px!important;
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width:1100px){
+  .monthly-report-top{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    column-gap:12px!important;
+  }
+
+  .monthly-report-month{
+    grid-template-columns:38px minmax(220px,1fr) 38px auto!important;
+    column-gap:7px!important;
+  }
+
+  .monthly-report-month .nav-arrow-btn{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    flex-basis:38px!important;
+  }
+
+  .monthly-report-title h2{
+    font-size:16px!important;
+  }
+
+  .monthly-report-download-btn{
+    padding:0 10px!important;
+  }
+
+  .monthly-report-controls{
+    grid-template-columns:190px 190px!important;
+  }
+
+  .monthly-report-search{
+    width:190px!important;
+  }
+
+  .monthly-report-select{
+    width:190px!important;
+  }
+}
+
+@media (max-width:850px){
+  .monthly-report-top{
+    grid-template-columns:1fr!important;
+    row-gap:12px!important;
+  }
+
+  .monthly-report-month{
+    grid-template-columns:38px minmax(0,1fr) 38px auto!important;
+  }
+
+  .monthly-report-downloads{
+    justify-content:center!important;
+  }
+
+  .monthly-report-table-head{
+    grid-template-columns:1fr!important;
+    row-gap:10px!important;
+  }
+
+  .monthly-report-controls{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    width:100%!important;
+  }
+
+  .monthly-report-search,
+  .monthly-report-select{
+    width:100%!important;
+  }
+
+  .monthly-report-legend{
+    justify-content:flex-start!important;
+    flex-wrap:wrap!important;
+  }
+}
+
+@media (max-width:560px){
+  .monthly-report-month{
+    grid-template-columns:36px minmax(0,1fr) 36px!important;
+    grid-template-rows:auto auto!important;
+  }
+
+  .monthly-report-month .nav-arrow-btn{
+    width:36px!important;
+    height:36px!important;
+    min-width:36px!important;
+    min-height:36px!important;
+  }
+
+  .monthly-report-today{
+    grid-column:2!important;
+    grid-row:2!important;
+    justify-self:center!important;
+    margin-top:3px!important;
+  }
+
+  .monthly-report-title{
+    grid-column:2!important;
+    grid-row:1!important;
+  }
+
+  .monthly-report-title h2{
+    white-space:normal!important;
+    font-size:15px!important;
+    line-height:19px!important;
+  }
+
+  .monthly-report-title p{
+    white-space:normal!important;
+  }
+
+  .monthly-report-controls{
+    grid-template-columns:1fr!important;
+  }
+
+  .monthly-report-downloads{
+    flex-wrap:wrap!important;
+  }
+}
+</style>
+
+
+<style id="monthly-report-dashboard-polish-v3">
+/* ==========================================================
+   TARJETAS DEL RESUMEN — MÁS VIVAS Y ORGANIZADAS
+   ========================================================== */
+#reportSummaryCards{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:10px!important;
+  padding:10px 0 0!important;
+  background:transparent!important;
+}
+
+.report-stat-card{
+  position:relative!important;
+  min-height:112px!important;
+  padding:14px 14px 12px!important;
+  border:1px solid #e2e8f0!important;
+  border-radius:13px!important;
+  background:#fff!important;
+  box-shadow:0 4px 14px rgba(15,23,42,.055)!important;
+  overflow:hidden!important;
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease!important;
+}
+
+.report-stat-card::before{
+  content:""!important;
+  position:absolute!important;
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  height:3px!important;
+  background:#cbd5e1!important;
+}
+
+.report-stat-card:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 8px 20px rgba(15,23,42,.08)!important;
+}
+
+.report-stat-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:8px!important;
+}
+
+.report-stat-icon{
+  width:32px!important;
+  height:32px!important;
+  border-radius:9px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:#f8fafc!important;
+  font-size:15px!important;
+  font-weight:900!important;
+}
+
+.report-stat-kicker{
+  color:#94a3b8!important;
+  font-size:8px!important;
+  line-height:10px!important;
+  font-weight:800!important;
+  text-transform:uppercase!important;
+  letter-spacing:.055em!important;
+  text-align:right!important;
+}
+
+.report-stat-value{
+  margin-top:9px!important;
+  font-size:25px!important;
+  line-height:27px!important;
+  font-weight:900!important;
+  letter-spacing:-.02em!important;
+  color:#172033!important;
+}
+
+.report-stat-label{
+  margin-top:2px!important;
+  color:#64748b!important;
+  font-size:10px!important;
+  line-height:13px!important;
+  font-weight:700!important;
+}
+
+.report-stat-members::before{background:#23447d!important;}
+.report-stat-members .report-stat-icon{background:#eef3ff!important;color:#23447d!important;}
+.report-stat-members .report-stat-value{color:#23447d!important;}
+
+.report-stat-sessions::before{background:#64748b!important;}
+.report-stat-sessions .report-stat-icon{background:#f1f5f9!important;}
+.report-stat-sessions .report-stat-value{color:#334155!important;}
+
+.report-stat-attendance::before{background:#10b981!important;}
+.report-stat-attendance .report-stat-icon{background:#ecfdf5!important;color:#059669!important;}
+.report-stat-attendance .report-stat-value{color:#047857!important;}
+
+.report-stat-absences::before{background:#f43f5e!important;}
+.report-stat-absences .report-stat-icon{background:#fff1f2!important;color:#e11d48!important;}
+.report-stat-absences .report-stat-value{color:#be123c!important;}
+
+.report-stat-bonus::before{background:#f59e0b!important;}
+.report-stat-bonus .report-stat-icon{background:#fffbeb!important;color:#b45309!important;}
+.report-stat-bonus .report-stat-value{color:#b45309!important;}
+
+.report-stat-general{
+  padding:13px 14px 11px!important;
+}
+.report-stat-general::before{background:#23447d!important;}
+.report-stat-percent{
+  color:#23447d!important;
+  font-size:24px!important;
+  line-height:26px!important;
+  font-weight:900!important;
+}
+.report-stat-general-label{
+  margin-top:5px!important;
+  color:#334155!important;
+}
+.report-stat-progress{
+  width:100%!important;
+  height:6px!important;
+  margin-top:10px!important;
+  overflow:hidden!important;
+  border-radius:999px!important;
+  background:#e8edf5!important;
+}
+.report-stat-progress span{
+  display:block!important;
+  height:100%!important;
+  border-radius:999px!important;
+  background:#23447d!important;
+  transition:width .35s ease!important;
+}
+.report-stat-footer{
+  display:flex!important;
+  justify-content:space-between!important;
+  gap:8px!important;
+  margin-top:7px!important;
+  color:#94a3b8!important;
+  font-size:8px!important;
+  line-height:10px!important;
+  font-weight:700!important;
+}
+
+/* ==========================================================
+   FLECHAS — MÁS JUNTAS, SIN VOLVER A TOCAR EL TÍTULO
+   ========================================================== */
+.monthly-report-month{
+  grid-template-columns:40px minmax(280px,1fr) 40px auto!important;
+  column-gap:5px!important;
+}
+
+.monthly-report-month .nav-arrow-btn{
+  width:40px!important;
+  height:40px!important;
+  min-width:40px!important;
+  min-height:40px!important;
+  flex-basis:40px!important;
+}
+
+@media (max-width:1100px){
+  #reportSummaryCards{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  .monthly-report-month{
+    grid-template-columns:38px minmax(220px,1fr) 38px auto!important;
+    column-gap:4px!important;
+  }
+  .monthly-report-month .nav-arrow-btn{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+    flex-basis:38px!important;
+  }
+}
+
+@media (max-width:700px){
+  #reportSummaryCards{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+@media (max-width:560px){
+  #reportSummaryCards{
+    grid-template-columns:1fr!important;
+  }
+}
+</style>
+
+
+<style id="monthly-report-cards-premium-v4">
+/* ==========================================================
+   TARJETAS RESUMEN — DISEÑO VISUAL HORIZONTAL
+   Emoji grande a la izquierda + información a la derecha.
+   ========================================================== */
+
+#reportSummaryCards{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:10px!important;
+  padding:10px 0 0!important;
+}
+
+.report-stat-card{
+  position:relative!important;
+  min-width:0!important;
+  min-height:106px!important;
+  display:grid!important;
+  grid-template-columns:72px minmax(0,1fr)!important;
+  align-items:stretch!important;
+  overflow:hidden!important;
+  border:1px solid #dfe6ef!important;
+  border-radius:14px!important;
+  background:#fff!important;
+  box-shadow:0 5px 16px rgba(15,23,42,.06)!important;
+  transition:transform .16s ease, box-shadow .16s ease!important;
+}
+
+.report-stat-card:hover{
+  transform:translateY(-2px)!important;
+  box-shadow:0 9px 22px rgba(15,23,42,.10)!important;
+}
+
+/* Franja izquierda: ahora ocupa una parte real de la tarjeta. */
+.report-stat-visual{
+  position:relative!important;
+  min-height:106px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+
+.report-stat-visual::after{
+  content:""!important;
+  position:absolute!important;
+  width:72px!important;
+  height:72px!important;
+  border-radius:50%!important;
+  right:-25px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  opacity:.55!important;
+}
+
+.report-stat-emoji{
+  position:relative!important;
+  z-index:2!important;
+  font-size:34px!important;
+  line-height:1!important;
+  filter:drop-shadow(0 2px 2px rgba(15,23,42,.10))!important;
+}
+
+.report-stat-content{
+  min-width:0!important;
+  padding:14px 10px 11px 11px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+}
+
+.report-stat-kicker{
+  margin:0!important;
+  color:#8b9ab0!important;
+  font-size:8px!important;
+  line-height:10px!important;
+  font-weight:900!important;
+  letter-spacing:.055em!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+.report-stat-value{
+  margin-top:8px!important;
+  color:#172033!important;
+  font-size:25px!important;
+  line-height:26px!important;
+  font-weight:900!important;
+  letter-spacing:-.025em!important;
+}
+
+.report-stat-label{
+  margin-top:3px!important;
+  color:#64748b!important;
+  font-size:9px!important;
+  line-height:12px!important;
+  font-weight:700!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+
+/* Fondos individuales: suaves, no saturados. */
+.report-stat-members{
+  background:linear-gradient(105deg,#eef3ff 0%,#f8fbff 39%,#fff 62%)!important;
+}
+.report-stat-members .report-stat-visual{
+  background:#e6edff!important;
+}
+.report-stat-members .report-stat-visual::after{
+  background:#c8d7ff!important;
+}
+.report-stat-members .report-stat-value{color:#23447d!important;}
+
+.report-stat-sessions{
+  background:linear-gradient(105deg,#f1f5f9 0%,#fafcff 39%,#fff 62%)!important;
+}
+.report-stat-sessions .report-stat-visual{
+  background:#e9eef5!important;
+}
+.report-stat-sessions .report-stat-visual::after{
+  background:#d2dbe7!important;
+}
+.report-stat-sessions .report-stat-value{color:#334155!important;}
+
+.report-stat-attendance{
+  background:linear-gradient(105deg,#ecfdf5 0%,#f7fffb 39%,#fff 62%)!important;
+}
+.report-stat-attendance .report-stat-visual{
+  background:#dcf9ec!important;
+}
+.report-stat-attendance .report-stat-visual::after{
+  background:#b9efd5!important;
+}
+.report-stat-attendance .report-stat-value{color:#047857!important;}
+
+.report-stat-absences{
+  background:linear-gradient(105deg,#fff1f2 0%,#fff9fa 39%,#fff 62%)!important;
+}
+.report-stat-absences .report-stat-visual{
+  background:#ffe7eb!important;
+}
+.report-stat-absences .report-stat-visual::after{
+  background:#ffc9d3!important;
+}
+.report-stat-absences .report-stat-value{color:#be123c!important;}
+
+.report-stat-bonus{
+  background:linear-gradient(105deg,#fffbeb 0%,#fffdf5 39%,#fff 62%)!important;
+}
+.report-stat-bonus .report-stat-visual{
+  background:#fff5d6!important;
+}
+.report-stat-bonus .report-stat-visual::after{
+  background:#ffe8a6!important;
+}
+.report-stat-bonus .report-stat-value{color:#b45309!important;}
+
+/* Asistencia general: misma composición, un poco más de información. */
+.report-stat-general{
+  background:linear-gradient(105deg,#eef3ff 0%,#f8faff 39%,#fff 62%)!important;
+}
+.report-stat-general .report-stat-visual{
+  background:#e5edff!important;
+}
+.report-stat-general .report-stat-visual::after{
+  background:#c8d8ff!important;
+}
+.report-stat-headline{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:5px!important;
+}
+.report-stat-percent{
+  flex:0 0 auto!important;
+  margin-top:-3px!important;
+  color:#23447d!important;
+  font-size:23px!important;
+  line-height:24px!important;
+  font-weight:900!important;
+}
+.report-stat-general-value{
+  margin-top:7px!important;
+  color:#334155!important;
+  font-size:11px!important;
+  line-height:13px!important;
+  letter-spacing:0!important;
+}
+.report-stat-progress{
+  width:100%!important;
+  height:5px!important;
+  margin-top:8px!important;
+  overflow:hidden!important;
+  border-radius:999px!important;
+  background:#e1e8f3!important;
+}
+.report-stat-progress span{
+  display:block!important;
+  height:100%!important;
+  border-radius:999px!important;
+  background:#23447d!important;
+  transition:width .35s ease!important;
+}
+.report-stat-footer{
+  display:flex!important;
+  justify-content:space-between!important;
+  gap:5px!important;
+  margin-top:6px!important;
+  color:#94a3b8!important;
+  font-size:7.5px!important;
+  line-height:9px!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+
+/* Quita cualquier línea superior del diseño anterior. */
+.report-stat-card::before{
+  display:none!important;
+}
+
+/* Responsive */
+@media (max-width:1180px){
+  #reportSummaryCards{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+}
+
+@media (max-width:760px){
+  #reportSummaryCards{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+@media (max-width:520px){
+  #reportSummaryCards{
+    grid-template-columns:1fr!important;
+  }
+  .report-stat-card{
+    grid-template-columns:82px minmax(0,1fr)!important;
+  }
+  .report-stat-visual{
+    min-height:96px!important;
+  }
+  .report-stat-emoji{
+    font-size:38px!important;
+  }
+}
 </style>
 
 </head>
@@ -458,9 +1705,35 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
               <span class="text-xs font-bold text-slate-800" id="currentUserNameLabel">Administrador</span>
               <span class="text-[10px] text-brand-600 font-semibold" id="currentUserRoleLabel">Administrador</span>
             </div>
-            <div id="currentUserAvatar" class="w-9 h-9 rounded-full bg-brand-100 border border-brand-300 flex items-center justify-center text-brand-700 font-bold text-sm">
-              AD
+            <div class="admin-profile-wrap" id="adminProfileWrap">
+              <button id="currentUserAvatar" type="button"
+                class="admin-avatar-button"
+                onclick="window.toggleAdminProfileMenu(event)"
+                aria-label="Abrir menú del administrador"
+                aria-expanded="false">
+                AP
+              </button>
+
+              <div id="adminProfileMenu" class="admin-avatar-menu hidden" role="menu">
+                <div class="admin-avatar-menu-title">Administración</div>
+
+                <button type="button" class="admin-avatar-menu-item" onclick="window.adminProfileNavigate('general')">
+                  <span class="menu-icon">🏠</span>
+                  <span>General</span>
+                </button>
+
+                <button type="button" class="admin-avatar-menu-item" onclick="window.adminProfileNavigate('admins')">
+                  <span class="menu-icon">🛡️</span>
+                  <span>Usuarios Admin</span>
+                </button>
+
+                <button type="button" class="admin-avatar-menu-item" onclick="window.adminProfileNavigate('audit')">
+                  <span class="menu-icon">📋</span>
+                  <span>Bitácora</span>
+                </button>
+              </div>
             </div>
+
             <button onclick="window.handleLogout()" title="Cerrar Sesión" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-1 cursor-pointer">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             </button>
@@ -472,7 +1745,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
   <div id="mainAppNav" class="bg-white border-b border-slate-200 hidden">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <nav class="flex space-x-2 sm:space-x-6 overflow-x-auto py-2.5 text-sm font-medium">
+      <nav id="adminMainNav" class="grid grid-cols-2 md:grid-cols-4 gap-2 py-2.5 text-sm font-medium">
         <button onclick="window.switchTab('tab-calendar')" id="btn-tab-calendar" class="tab-btn px-3 py-2 rounded-lg font-medium text-brand-600 bg-brand-50 border border-brand-200/60 flex items-center space-x-2 cursor-pointer">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           <span>Calendario de Reuniones</span>
@@ -494,16 +1767,9 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           <span class="ml-1 px-2 py-0.5 text-xs bg-slate-200 text-slate-700 rounded-full font-bold" id="badge-users-count">0</span>
         </button>
 
-        <button onclick="window.switchTab('tab-admins')" id="btn-tab-admins" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-          <span>Usuarios Administrativos</span>
-          <span class="ml-1 px-2 py-0.5 text-xs bg-purple-100 text-purple-800 rounded-full font-bold" id="badge-admins-count">1</span>
-        </button>
+        
 
-        <button onclick="window.switchTab('tab-audit')" id="btn-tab-audit" class="tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-          <span>Bitácora de Auditoría</span>
-        </button>
+        
       </nav>
     </div>
   </div>
@@ -586,9 +1852,9 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     <div id="tab-calendar" class="tab-content fade-enter space-y-5">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="flex items-center space-x-3">
-          <button onclick="window.prevMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">◀</button>
+          <button onclick="window.prevMonth()" class="nav-arrow-btn nav-arrow-left" aria-label="Mes anterior"><span class="nav-arrow-icon" aria-hidden="true"></span></button>
           <h2 class="text-lg font-bold text-slate-900 min-w-[200px] text-center" id="calendarMonthYear">Mes Año</h2>
-          <button onclick="window.nextMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">▶</button>
+          <button onclick="window.nextMonth()" class="nav-arrow-btn nav-arrow-right" aria-label="Mes siguiente"><span class="nav-arrow-icon" aria-hidden="true"></span></button>
           <button onclick="window.goToToday()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer">Hoy</button>
         </div>
 
@@ -630,39 +1896,67 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     <!-- PESTAÑA 2: REPORTE MENSUAL DE ASISTENCIA -->
     <div id="tab-report" class="tab-content hidden fade-enter space-y-5">
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-          <button onclick="window.reportPrevMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">◀</button>
-          <div class="min-w-[210px] text-center">
-            <h2 class="text-lg font-bold text-slate-900" id="reportMonthTitle">Reporte Mensual</h2>
-            <p class="text-[11px] text-slate-500">Se recalcula automáticamente con cada cambio de asistencia.</p>
+      <div class="monthly-report-toolbar bg-white rounded-xl border border-slate-200 shadow-xs p-4">
+        <div class="monthly-report-top">
+          <div class="monthly-report-month">
+            <button onclick="window.reportPrevMonth()" class="nav-arrow-btn nav-arrow-left" aria-label="Mes anterior"><span class="nav-arrow-icon" aria-hidden="true"></span></button>
+            <div class="monthly-report-title">
+              <h2 id="reportMonthTitle">Reporte Mensual</h2>
+              <p>Se recalcula automáticamente con cada cambio de asistencia.</p>
+            </div>
+            <button onclick="window.reportNextMonth()" class="nav-arrow-btn nav-arrow-right" aria-label="Mes siguiente"><span class="nav-arrow-icon" aria-hidden="true"></span></button>
+            <button onclick="window.reportGoToday()" class="monthly-report-today">Hoy</button>
           </div>
-          <button onclick="window.reportNextMonth()" class="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 cursor-pointer">▶</button>
-          <button onclick="window.reportGoToday()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer">Hoy</button>
+
+          <div class="monthly-report-downloads">
+            <button id="btnDownloadReportPdf"
+                    onclick="window.downloadMonthlyReportPDF()"
+                    class="monthly-report-download-btn monthly-report-download-pdf"
+                    title="Descargar el reporte mensual actual en PDF">
+              📄 Descargar PDF
+            </button>
+            <button id="btnDownloadReportExcel"
+                    onclick="window.downloadMonthlyReportExcel()"
+                    class="monthly-report-download-btn monthly-report-download-excel"
+                    title="Descargar el reporte mensual actual en Excel">
+              📊 Descargar Excel
+            </button>
+          </div>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <input id="reportMemberSearch" type="search" oninput="window.renderMonthlyReport()" placeholder="🔎 Buscar miembro..." class="w-full sm:w-56 px-3 py-2 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
-          <select id="reportCircleFilter" onchange="window.renderMonthlyReport()" class="px-3 py-2 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
-            <option value="">Seleccione un círculo</option>
-          </select>
-          <button onclick="window.renderMonthlyReport()" class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold cursor-pointer">↻ Recalcular</button>
-        </div>
+
       </div>
 
-      <div id="reportSummaryCards" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3"></div>
+      <div id="monthlyReportExportArea">
+        <div id="reportSummaryCards" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3"></div>
 
-      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div class="px-4 py-3 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="monthly-report-table-head">
+          <div class="monthly-report-table-title">
             <h3 class="text-sm font-bold text-slate-900">Registro General de Asistencia</h3>
             <p class="text-[11px] text-slate-500">J verde = justificación válida. J roja = excedente y no cuenta como asistencia.</p>
           </div>
-          <div class="flex flex-wrap gap-2 text-[10px] font-bold">
-            <span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">✓ Asistió</span>
-            <span class="px-2 py-1 rounded bg-sky-50 text-sky-700 border border-sky-200">P Presencial</span>
-            <span class="px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200">J Válida</span>
-            <span class="px-2 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">J Excedente / F</span>
+
+          <div class="monthly-report-controls">
+            <input id="reportMemberSearch"
+                   type="search"
+                   oninput="window.renderMonthlyReport()"
+                   placeholder="🔎 Buscar miembro..."
+                   class="monthly-report-search"
+                   aria-label="Buscar miembro">
+
+            <select id="reportCircleFilter"
+                    onchange="window.renderMonthlyReport()"
+                    class="monthly-report-select"
+                    aria-label="Seleccionar círculo">
+              <option value="">Seleccione un círculo</option>
+            </select>
           </div>
+        </div>
+
+        <div class="monthly-report-legend">
+          <span class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">✓ Asistió</span>
+          <span class="px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200">J Válida</span>
+          <span class="px-2 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200">J Excedente / F</span>
         </div>
         <div class="overflow-auto max-h-[calc(100vh-360px)]">
           <table class="min-w-max w-full text-center text-[11px] border-collapse" id="monthlyReportTable">
@@ -670,6 +1964,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
             <tbody id="monthlyReportBody" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
 
@@ -763,7 +2058,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     <!-- PESTAÑA 4: DIRECTORIO DE MIEMBROS -->
     <div id="tab-users" class="tab-content hidden fade-enter space-y-4">
-      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs directory-toolbar">
         <div class="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto flex-1 max-w-xl">
           <input type="text" id="userSearchInput" oninput="window.renderUserDirectory()" placeholder="Buscar por DNI, nombre, rango, círculo..." class="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-slate-50/50">
           
@@ -771,13 +2066,10 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
             <select id="userCircleFilter" onchange="window.renderUserDirectory()" class="w-full sm:w-56 px-3 py-2 text-xs sm:text-sm font-medium border border-slate-300 rounded-lg bg-white text-slate-700 focus:ring-2 focus:ring-brand-500 outline-none">
               <option value="">Todos mis Círculos</option>
             </select>
-            <button onclick="window.promptDeleteCircle()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1 shrink-0" title="Eliminar el círculo seleccionado en el filtro">
-              🗑️ <span class="hidden sm:inline">Eliminar Círculo</span>
-            </button>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end directory-actions">
           <button id="btnExcelTemplate" onclick="window.downloadExcelTemplate()" class="px-3 py-2 border border-emerald-600/30 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-semibold cursor-pointer">
             📥 Plantilla Excel
           </button>
@@ -795,13 +2087,12 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           <table class="w-full text-left text-sm text-slate-600">
             <thead class="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b border-slate-200">
               <tr>
-                <th class="px-4 py-3.5 text-emerald-800 font-bold">DNI / Documento</th>
-                <th class="px-5 py-3.5">Nombres y Apellidos</th>
-                <th class="px-4 py-3.5">Círculo Asignado</th>
-                <th class="px-4 py-3.5">Rango</th>
-                <th class="px-4 py-3.5">Contacto</th>
-                <th class="px-4 py-3.5">Asistencia (Reuniones)</th>
-                <th class="px-4 py-3.5 text-right">Acciones</th>
+                <th class="directory-col-dni px-4 py-3.5 text-emerald-800 font-bold whitespace-nowrap">DNI / Documento</th>
+                <th class="directory-col-user px-4 py-3.5 whitespace-nowrap">Usuario</th>
+                <th class="directory-col-circle px-4 py-3.5 whitespace-nowrap">Círculo Asignado</th>
+                <th class="directory-col-rank px-4 py-3.5 whitespace-nowrap">Rango</th>
+                <th class="directory-col-contact px-4 py-3.5 whitespace-nowrap">Contacto</th>
+                <th class="directory-col-actions px-4 py-3.5 text-right whitespace-nowrap">Acciones</th>
               </tr>
             </thead>
             <tbody id="userDirectoryTableBody" class="divide-y divide-slate-100"></tbody>
@@ -815,7 +2106,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         <div>
           <h2 class="text-base font-bold text-slate-900">Usuarios Administrativos y Roles de Acceso</h2>
-          <p class="text-xs text-slate-500">Gestión de Administradores, Sub Administradores y Moderadores.</p>
+          <p class="text-xs text-slate-500">Gestión del Administrador General, administradores por círculo y moderadores.</p>
         </div>
         <button id="btnNewAdmin" onclick="window.openNewAdminModal()" class="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold cursor-pointer">
           + Nuevo Usuario Administrativo
@@ -1243,8 +2534,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         <div>
           <label class="block font-semibold text-slate-700 mb-1">Rol Administrativo <span class="text-rose-500">*</span></label>
           <select id="newAdminRole" required onchange="window.handleAdminRoleChange(this.value)" class="w-full px-3 py-2 border border-purple-300 bg-purple-50/40 text-purple-900 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-semibold">
-            <option value="Administrador">👑 Administrador (Acceso Global Total)</option>
-            <option value="Sub Administrador">🎖️ Sub Administrador (Gestión de Círculos y Justificaciones)</option>
+            <option value="Administrador General">👑 Administrador General (Acceso Global Total)</option>
             <option value="Moderador">🎯 Moderador (Solo Lectura)</option>
           </select>
         </div>
@@ -1261,7 +2551,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           </div>
           
           <div id="adminCirclesCheckboxList" class="max-h-36 overflow-y-auto border border-slate-300 rounded-lg p-2.5 bg-slate-50/50 space-y-1.5 divide-y divide-slate-100"></div>
-          <p class="text-[10px] text-slate-400 mt-1">Puedes marcar uno o varios círculos para esta persona.</p>
+          <p class="text-[10px] text-slate-400 mt-1">Solo se utiliza para registros antiguos. Los nuevos administradores quedan ligados automáticamente al círculo indicado por su rol.</p>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -1384,7 +2674,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         name: "Administrador Principal",
         email: "admin@empresa.com",
         pin: "2026",
-        role: "Administrador",
+        role: "Administrador General",
         circleScope: ["Todos los Círculos"],
         createdAt: new Date().toISOString()
       }
@@ -1404,18 +2694,52 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.currentSessionUser = null;
 
+    // ===== ROLES ADMINISTRATIVOS POR CÍRCULO =====
+    // Cada círculo existente genera automáticamente un rol con su mismo nombre.
+    window.isMainAdministrator = function(user = window.currentSessionUser) {
+      return String(user?.id || '').trim() === 'ADM-001';
+    };
+
+    window.isGlobalAdministrator = function(user = window.currentSessionUser) {
+      // El Administrador Principal es el único con control global.
+      return window.isMainAdministrator(user);
+    };
+
+    window.isCircleAdministrator = function(user = window.currentSessionUser) {
+      if (!user || window.isModerator?.(user) || window.isGlobalAdministrator(user)) return false;
+
+      const role = String(user.role || '').trim();
+      const circles = window.availableCircles || [];
+      const roleIsCircle = circles.some(c => String(c).trim().toUpperCase() === role.toUpperCase());
+
+      // Los administradores de círculo quedan identificados por su rol ligado
+      // al nombre del círculo. También reconocemos registros anteriores que
+      // tengan un único círculo asignado, para que no recuperen los 6 apartados.
+      const scope = Array.isArray(user.circleScope)
+        ? user.circleScope.map(c => String(c).trim()).filter(Boolean)
+        : [];
+      const hasSingleCircleScope = scope.length === 1 &&
+        !scope.some(c => c.toUpperCase() === 'TODOS LOS CÍRCULOS') &&
+        circles.some(c => String(c).trim().toUpperCase() === scope[0].toUpperCase());
+
+      return roleIsCircle || hasSingleCircleScope;
+    };
+
     // ===== CONTROL DE PERMISOS ADMINISTRATIVOS =====
-    // Administrador: control total, incluyendo crear otros Administradores.
-    // Sub Administrador: solo opera dentro de los círculos asignados.
+    // Administrador General: control total y exclusivo del Administrador Principal.
+    // Administrador de círculo: solo opera dentro de su círculo.
+    // Sub Administrador: compatibilidad con registros antiguos.
     // Moderador: acceso estrictamente de solo lectura.
-    window.isAdministrator = function() {
-      return window.currentSessionUser?.role === "Administrador" || window.currentSessionUser?.role === "Superadministrador";
+    // Administrador General = control global. Los administradores por círculo
+    // conservan capacidad operativa dentro de su propio círculo.
+    window.isAdministrator = function(user = window.currentSessionUser) {
+      return window.isGlobalAdministrator(user);
     };
-    window.isModerator = function() {
-      return window.currentSessionUser?.role === "Moderador";
+    window.isModerator = function(user = window.currentSessionUser) {
+      return user?.role === "Moderador";
     };
-    window.canModifySystem = function() {
-      return !window.isModerator();
+    window.canModifySystem = function(user = window.currentSessionUser) {
+      return !window.isModerator(user);
     };
     window.canAccessCircle = function(circle) {
       if (!circle) return false;
@@ -1502,8 +2826,21 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       const role = window.currentSessionUser?.role;
       const readOnly = role === "Moderador";
-      const adminOnly = role !== "Administrador" && role !== "Superadministrador";
-      ["btnNewAdmin"].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle("hidden", adminOnly); });
+      const isGlobalAdmin = window.isGlobalAdministrator(window.currentSessionUser);
+      const isCircleAdmin = window.isCircleAdministrator(window.currentSessionUser);
+      const adminOnly = !isGlobalAdmin;
+
+      // Administrador de círculo: ocultar completamente los módulos
+      // "Usuarios Administrativos" y "Bitácora de Auditoría".
+      document.body.classList.toggle("circle-admin-view", isCircleAdmin && !isGlobalAdmin);
+
+      ["btnNewAdmin"].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle("hidden", !isGlobalAdmin); });
+
+      // Los administradores de círculo solo trabajan con los cuatro módulos operativos.
+      ["btn-tab-admins","btn-tab-audit","tab-admins","tab-audit"].forEach(id => {
+        const el=document.getElementById(id);
+        if(el) el.classList.toggle("hidden", isCircleAdmin && !isGlobalAdmin);
+      });
       // Masterclass es una decisión GLOBAL del Administrador General.
       // Sub Administradores y Moderadores no deben ver ni ejecutar sus controles.
       ["btnCalendarNewMeeting","btnExcelImport","btnNewMember","btnExcelTemplate"].forEach(id => { const el=document.getElementById(id); if(el) el.classList.toggle("hidden", readOnly); });
@@ -1524,7 +2861,11 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       document.getElementById('currentUserNameLabel').innerText = window.currentSessionUser.name;
       document.getElementById('currentUserRoleLabel').innerText = window.currentSessionUser.role;
       const initials = window.currentSessionUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-      document.getElementById('currentUserAvatar').innerText = initials || 'AD';
+      const avatar = document.getElementById('currentUserAvatar');
+      if (avatar) {
+        avatar.innerText = isGlobalAdmin ? 'AP' : (initials || 'AD');
+        avatar.setAttribute('aria-label', isGlobalAdmin ? 'Menú del Administrador Principal' : 'Perfil del administrador');
+      }
 
       window.populateCircleDropdowns();
       window.renderAdminCirclesCheckboxes();
@@ -1586,7 +2927,9 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     };
 
     window.handleLogout = function() {
+      window.closeAdminProfileMenu?.();
       window.currentSessionUser = null;
+      document.body.classList.remove('circle-admin-view');
       const isEmbajadorRoute = window.location.pathname.includes('embajador') || window.location.search.includes('embajador');
       if (isEmbajadorRoute) {
         document.getElementById('memberPortalView').classList.add('hidden');
@@ -1611,8 +2954,65 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       window.showToast("Sesión Cerrada", "Has salido de tu portal de embajador.", "info");
     };
 
+    // ===== MENÚ DEL ADMINISTRADOR PRINCIPAL =====
+    window.toggleAdminProfileMenu = function(event) {
+      if (event) event.stopPropagation();
+
+      const menu = document.getElementById('adminProfileMenu');
+      const button = document.getElementById('currentUserAvatar');
+      if (!menu || !button) return;
+
+      // Solo el Administrador General tiene este menú.
+      if (!window.isGlobalAdministrator?.(window.currentSessionUser)) return;
+
+      const willOpen = menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', !willOpen);
+      button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    };
+
+    window.closeAdminProfileMenu = function() {
+      const menu = document.getElementById('adminProfileMenu');
+      const button = document.getElementById('currentUserAvatar');
+      if (menu) menu.classList.add('hidden');
+      if (button) button.setAttribute('aria-expanded', 'false');
+    };
+
+    window.adminProfileNavigate = function(destination) {
+      // El menú es exclusivo del Administrador General.
+      if (!window.isGlobalAdministrator?.(window.currentSessionUser)) return;
+
+      window.closeAdminProfileMenu();
+
+      if (destination === 'general') {
+        window.switchTab('tab-calendar');
+        return;
+      }
+
+      if (destination === 'admins') {
+        window.switchTab('tab-admins');
+        return;
+      }
+
+      if (destination === 'audit') {
+        window.switchTab('tab-audit');
+        return;
+      }
+    };
+
+    // Cerrar el menú al hacer clic fuera.
+    document.addEventListener('click', function(event) {
+      const wrap = document.getElementById('adminProfileWrap');
+      if (wrap && !wrap.contains(event.target)) {
+        window.closeAdminProfileMenu();
+      }
+    });
+
     // Cambio de pestañas
     window.switchTab = function(tabId) {
+      // Los administradores de círculo solo pueden acceder a los 4 módulos operativos.
+      if (window.isCircleAdministrator?.() && (tabId === 'tab-admins' || tabId === 'tab-audit')) {
+        return;
+      }
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.className = "tab-btn px-3 py-2 rounded-lg font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center space-x-2 cursor-pointer";
@@ -1758,6 +3158,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       window.availableCircles = uniqueFirebaseCircles.length
         ? uniqueFirebaseCircles
         : [...(window.OFFICIAL_CIRCLES || [])];
+      window.populateAdminRoleOptions?.();
       window.circleUsers = normalized.users;
       window.adminUsers = normalized.admins;
 
@@ -1870,23 +3271,27 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.getUserAllowedCircles = function(user) {
       if (!user) return [...window.availableCircles];
-      if (user.role === "Administrador" || user.role === "Superadministrador") return [...window.availableCircles];
-      
-      const scope = user.circleScope;
-      // Un Sub Administrador sin círculos asignados NO obtiene acceso global.
-      if (!scope) return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
+      if (window.isGlobalAdministrator(user)) return [...window.availableCircles];
 
+      // Nuevo modelo: el nombre del rol identifica de forma obligatoria al círculo.
+      const role = String(user.role || '').trim();
+      const matchingCircle = (window.availableCircles || []).find(c => String(c).trim().toUpperCase() === role.toUpperCase());
+      if (matchingCircle) return [matchingCircle];
+
+      // Compatibilidad con usuarios creados con el antiguo Sub Administrador.
+      const scope = user.circleScope;
+      if (!scope) return user.role === 'Sub Administrador' ? [] : [...window.availableCircles];
       if (Array.isArray(scope)) {
-        if (scope.includes("Todos los Círculos")) return [...window.availableCircles];
-        if (scope.length === 0) return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
-        return scope;
+        if (scope.includes('Todos los Círculos')) return [...window.availableCircles];
+        if (scope.length === 0) return user.role === 'Sub Administrador' ? [] : [...window.availableCircles];
+        return scope.filter(c => (window.availableCircles || []).includes(c));
       }
       if (typeof scope === 'string') {
-        if (scope === "Todos los Círculos") return [...window.availableCircles];
-        if (scope === "") return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
-        return [scope];
+        if (scope === 'Todos los Círculos') return [...window.availableCircles];
+        if (scope === '') return user.role === 'Sub Administrador' ? [] : [...window.availableCircles];
+        return (window.availableCircles || []).includes(scope) ? [scope] : [];
       }
-      return user.role === "Sub Administrador" ? [] : [...window.availableCircles];
+      return user.role === 'Sub Administrador' ? [] : [...window.availableCircles];
     };
 
     window.updateGlobalStats = function() {
@@ -1927,7 +3332,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       if (badgeU) badgeU.innerText = scopedMemberCount;
 
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">No hay miembros registrados en los círculos asignados.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400">No hay miembros registrados en los círculos asignados.</td></tr>`;
         return;
       }
 
@@ -1950,16 +3355,14 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-50";
         tr.innerHTML = `
-          <td class="px-4 py-3.5 font-mono font-bold text-emerald-800">${u.doc || 'S/D'}</td>
-          <td class="px-5 py-3.5 font-bold text-slate-900">${u.name}</td>
-          <td class="px-4 py-3.5"><span class="px-2 py-0.5 text-xs font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-200">${u.circle}</span></td>
-          <td class="px-4 py-3.5 font-medium text-slate-600">${u.job || 'Miembro'}</td>
-          <td class="px-4 py-3.5 text-xs text-slate-500">${u.email || '-'}<br>${u.phone || '-'}</td>
-          <td class="px-4 py-3.5">
-            <div class="font-bold text-xs text-slate-800">${attended} / ${assigned} asignadas</div>
-            <div class="text-[10px] text-slate-400">${attended} asistió · ${absent} no asistió · ${justified} justif.</div>
+          <td class="directory-col-dni px-4 py-3.5 font-mono font-bold text-emerald-800 whitespace-nowrap">${u.doc || 'S/D'}</td>
+          <td class="directory-col-user px-4 py-3.5 font-bold text-slate-900 whitespace-nowrap" title="${u.name || ''}">${u.name || 'Sin usuario'}</td>
+          <td class="directory-col-circle px-4 py-3.5 whitespace-nowrap">
+            <span class="directory-circle-badge px-2 py-0.5 text-xs font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-200 whitespace-nowrap">${u.circle || '-'}</span>
           </td>
-          <td class="px-4 py-3.5 text-right space-x-1">
+          <td class="directory-col-rank px-4 py-3.5 font-medium text-slate-600 whitespace-nowrap">${u.job || 'Miembro'}</td>
+          <td class="directory-col-contact px-4 py-3.5 text-xs text-slate-500 whitespace-nowrap">${u.email || '-'}</td>
+          <td class="directory-col-actions px-4 py-3.5 text-right space-x-1 whitespace-nowrap">
             ${!isModerator ? `
               <button onclick="window.openEditUserModal('${u.id}')" class="p-1 text-brand-600 hover:bg-brand-50 rounded cursor-pointer" title="Editar">✏️</button>
               <button onclick="window.promptDeleteUser('${u.id}')" class="p-1 text-rose-600 hover:bg-rose-50 rounded cursor-pointer" title="Eliminar">🗑️</button>
@@ -2162,11 +3565,11 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
         let category = null;
         const cat=dayMeetings.length?normalizeMeetingCategory(dayMeetings[0]):null;
-        if(cat==='CIRCULO DE LIDERAZGO')category={name:'CÍRCULO DE LIDERAZGO',badge:'bg-yellow-100 text-yellow-800 border-yellow-200',cell:'bg-yellow-50/40'};
-        else if(cat==='HEALTH')category={name:'HEALTH',badge:'bg-emerald-100 text-emerald-800 border-emerald-200',cell:'bg-emerald-50/40'};
+        if(cat==='CIRCULO DE LIDERAZGO')category={name:'CÍRCULO DE LIDERAZGO',badge:'bg-blue-100 text-blue-800 border-blue-200',cell:'bg-blue-50/40'};
+        else if(cat==='HEALTH')category={name:'HEALTH',badge:'bg-cyan-100 text-cyan-800 border-cyan-200',cell:'bg-cyan-50/40'};
         else if(cat==='MENTORIA')category={name:'MENTORÍA',badge:'bg-purple-100 text-purple-800 border-purple-200',cell:'bg-purple-50/40'};
-        else if(cat==='MASTERCLASS')category={name:'MASTERCLASS',badge:'bg-blue-100 text-blue-800 border-blue-200',cell:'bg-blue-50/30'};
-        else if(cat==='ANUNCIOS CORPORATIVOS')category={name:'ANUNCIOS CORPORATIVOS',badge:'bg-purple-100 text-purple-800 border-purple-200',cell:'bg-purple-50/40'};
+        else if(cat==='MASTERCLASS')category={name:'MASTERCLASS',badge:'bg-slate-200 text-slate-700 border-slate-300',cell:'bg-slate-100/70'};
+        else if(cat==='ANUNCIOS CORPORATIVOS')category={name:'ANUNCIOS CORPORATIVOS',badge:'cc-anuncios-cell-badge',cell:'cc-anuncios-cell'};
 
         const dayClass = category ? category.cell : 'bg-white';
         cell.className = `min-h-[95px] ${dayClass} p-2 text-xs flex flex-col justify-between hover:bg-slate-50 ${isToday ? 'ring-2 ring-brand-500' : ''}`;
@@ -2180,11 +3583,11 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         dayMeetings.forEach(m => {
           const meetingCategory=normalizeMeetingCategory(m);
           let meetingClass='bg-indigo-50 border-indigo-200 text-indigo-900';
-          if(meetingCategory==='CIRCULO DE LIDERAZGO')meetingClass='bg-yellow-100 border-yellow-300 text-yellow-800';
-          else if(meetingCategory==='HEALTH')meetingClass='bg-emerald-100 border-emerald-300 text-emerald-800';
+          if(meetingCategory==='CIRCULO DE LIDERAZGO')meetingClass='bg-blue-100 border-blue-300 text-blue-800';
+          else if(meetingCategory==='HEALTH')meetingClass='bg-cyan-100 border-cyan-300 text-cyan-800';
           else if(meetingCategory==='MENTORIA')meetingClass='bg-purple-100 border-purple-300 text-purple-800';
-          else if(meetingCategory==='ANUNCIOS CORPORATIVOS')meetingClass='bg-purple-100 border-purple-300 text-purple-800';
-          else if(meetingCategory==='MASTERCLASS')meetingClass='bg-blue-100 border-blue-300 text-blue-800';
+          else if(meetingCategory==='ANUNCIOS CORPORATIVOS')meetingClass='cc-anuncios-event';
+          else if(meetingCategory==='MASTERCLASS')meetingClass='bg-slate-200 border-slate-300 text-slate-700';
 
           let displayTime=`${formatTime12(m.time)} - ${formatTime12(m.endTime || m.time)}`;
 
@@ -2381,19 +3784,88 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         return {u,sessions,stats};
       });
       const generalPct = totalScheduled ? Math.round(totalAttend/totalScheduled*100) : 0;
-      cards.innerHTML = [
-        ['👥','Miembros',users.length,'text-brand-700','bg-brand-50'],
-        ['📅','Sesiones ocurridas',totalScheduled,'text-slate-800','bg-slate-50'],
-        ['✅','Asistencias',totalAttend,'text-emerald-700','bg-emerald-50'],
-        ['❌','Faltas',totalAbsent,'text-rose-700','bg-rose-50'],
-        ['🏆','Bonos',totalBonus,'text-amber-700','bg-amber-50']
-      ].map(c=>`<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3 min-h-[76px]"><div class="w-9 h-9 rounded-lg ${c[4]} flex items-center justify-center">${c[0]}</div><div><p class="text-[10px] uppercase font-bold text-slate-400">${c[1]}</p><p class="text-xl font-extrabold ${c[3]}">${c[2]}</p></div></div>`).join('') +
-      `<div class="col-span-2 md:col-span-1 bg-white p-3 rounded-xl border border-slate-200 shadow-xs min-h-[76px] flex flex-col justify-center"><p class="text-[10px] uppercase font-bold text-slate-400">Asistencia general</p><p class="text-2xl font-extrabold text-brand-700">${generalPct}%</p><p class="text-[10px] text-slate-400">Pendientes: ${totalPending}</p></div>`;
+      const attendanceBar = Math.min(100, generalPct);
+      cards.innerHTML = `
+        <div class="report-stat-card report-stat-members">
+          <div class="report-stat-visual">
+            <span class="report-stat-emoji">👥</span>
+          </div>
+          <div class="report-stat-content">
+            <div class="report-stat-kicker">PARTICIPANTES</div>
+            <div class="report-stat-value">${users.length}</div>
+            <div class="report-stat-label">Miembros</div>
+          </div>
+        </div>
+
+        <div class="report-stat-card report-stat-sessions">
+          <div class="report-stat-visual">
+            <span class="report-stat-emoji">📅</span>
+          </div>
+          <div class="report-stat-content">
+            <div class="report-stat-kicker">ACTIVIDAD</div>
+            <div class="report-stat-value">${totalScheduled}</div>
+            <div class="report-stat-label">Sesiones</div>
+          </div>
+        </div>
+
+        <div class="report-stat-card report-stat-attendance">
+          <div class="report-stat-visual">
+            <span class="report-stat-emoji">✅</span>
+          </div>
+          <div class="report-stat-content">
+            <div class="report-stat-kicker">RESULTADO</div>
+            <div class="report-stat-value">${totalAttend}</div>
+            <div class="report-stat-label">Asistencias</div>
+          </div>
+        </div>
+
+        <div class="report-stat-card report-stat-absences">
+          <div class="report-stat-visual">
+            <span class="report-stat-emoji">❌</span>
+          </div>
+          <div class="report-stat-content">
+            <div class="report-stat-kicker">CONTROL</div>
+            <div class="report-stat-value">${totalAbsent}</div>
+            <div class="report-stat-label">Faltas</div>
+          </div>
+        </div>
+
+        <div class="report-stat-card report-stat-bonus">
+          <div class="report-stat-visual">
+            <span class="report-stat-emoji">🏆</span>
+          </div>
+          <div class="report-stat-content">
+            <div class="report-stat-kicker">BONOS</div>
+            <div class="report-stat-value">${totalBonus}</div>
+            <div class="report-stat-label">Bonos</div>
+          </div>
+        </div>
+
+        <div class="report-stat-card report-stat-general">
+          <div class="report-stat-visual">
+            <span class="report-stat-emoji">📊</span>
+          </div>
+          <div class="report-stat-content">
+            <div class="report-stat-headline">
+              <div class="report-stat-kicker">RENDIMIENTO MENSUAL</div>
+              <span class="report-stat-percent">${generalPct}%</span>
+            </div>
+            <div class="report-stat-value report-stat-general-value">Asistencia</div>
+            <div class="report-stat-progress">
+              <span style="width:${attendanceBar}%"></span>
+            </div>
+            <div class="report-stat-footer">
+              <span>${totalAttend} asistencias</span>
+              <span>${totalPending} pendientes</span>
+            </div>
+          </div>
+        </div>
+      `;
 
       const byCat = {'CIRCULO DE LIDERAZGO':[],HEALTH:[],MENTORIA:[],MASTERCLASS:[],'ANUNCIOS CORPORATIVOS':[]};
       allSessions.forEach(s=>byCat[s.category].push(s));
       const catStyle = {
-        'CIRCULO DE LIDERAZGO':'bg-yellow-500 text-yellow-950', HEALTH:'bg-emerald-500 text-emerald-950', MENTORIA:'bg-purple-500 text-white', MASTERCLASS:'bg-blue-600 text-white', 'ANUNCIOS CORPORATIVOS':'bg-purple-700 text-white'
+        'CIRCULO DE LIDERAZGO':'bg-blue-500 text-white', HEALTH:'bg-cyan-500 text-cyan-950', MENTORIA:'bg-purple-500 text-white', MASTERCLASS:'bg-slate-500 text-white', 'ANUNCIOS CORPORATIVOS':'cc-report-anuncios'
       };
       const catLabel = {'CIRCULO DE LIDERAZGO':'CÍRCULO DE LIDERAZGO',HEALTH:'HEALTH',MENTORIA:'MENTORÍA',MASTERCLASS:'MASTERCLASS','ANUNCIOS CORPORATIVOS':'ANUNCIOS CORPORATIVOS'};
       let top = `<tr class="text-[10px] uppercase"><th rowspan="2" class="sticky left-0 z-20 bg-slate-900 text-white px-3 py-2 min-w-[210px] text-left">Usuario</th><th rowspan="2" class="sticky left-[210px] z-20 bg-slate-900 text-white px-2 py-2 min-w-[150px] text-left">Círculo</th>`;
@@ -2448,6 +3920,205 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       });
     };
 
+    // ===== EXPORTACIÓN DEL REPORTE MENSUAL =====
+
+    function monthlyReportFileBase() {
+      const year = window.currentDate?.getFullYear() || new Date().getFullYear();
+      const month = window.currentDate?.getMonth() ?? new Date().getMonth();
+      const monthName = (window.monthNames?.[month] || `Mes${month + 1}`)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '_');
+      const circle = document.getElementById('reportCircleFilter')?.value || 'Todos_los_Circulos';
+      const safeCircle = circle
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      return `Reporte_Asistencia_${monthName}_${year}_${safeCircle || 'Todos_los_Circulos'}`;
+    }
+
+    function waitForCanvasFonts() {
+      if (document.fonts?.ready) return document.fonts.ready;
+      return Promise.resolve();
+    }
+
+    window.downloadMonthlyReportPDF = async function() {
+      const area = document.getElementById('monthlyReportExportArea');
+      const btn = document.getElementById('btnDownloadReportPdf');
+      if (!area || !window.html2canvas || !window.jspdf) {
+        window.showToast("No disponible", "No se pudo preparar la exportación PDF.", "error");
+        return;
+      }
+
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '⏳ Preparando PDF...';
+        }
+
+        // Esperar fuentes y un pequeño ciclo de render para capturar los colores
+        // y badges exactamente como aparecen en pantalla.
+        await waitForCanvasFonts();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        // El reporte en pantalla tiene scroll para ahorrar espacio.
+        // Para el PDF quitamos temporalmente ese límite para capturar TODAS
+        // las filas del mes, no solamente las que están visibles.
+        const scrollBoxes = Array.from(area.querySelectorAll('.overflow-auto'));
+        const savedScrollStyles = scrollBoxes.map(el => ({
+          el,
+          maxHeight: el.style.maxHeight,
+          height: el.style.height,
+          overflow: el.style.overflow,
+          overflowX: el.style.overflowX,
+          overflowY: el.style.overflowY
+        }));
+
+        scrollBoxes.forEach(el => {
+          el.style.maxHeight = 'none';
+          el.style.height = 'auto';
+          el.style.overflow = 'visible';
+          el.style.overflowX = 'visible';
+          el.style.overflowY = 'visible';
+        });
+
+        // Dar un ciclo de render para que la tabla complete su altura real.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        const canvas = await html2canvas(area, {
+          backgroundColor: '#f8fafc',
+          scale: Math.min(2, window.devicePixelRatio || 1.5),
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          windowWidth: Math.max(area.scrollWidth, area.clientWidth)
+        });
+
+        // Restaurar exactamente el comportamiento de pantalla.
+        savedScrollStyles.forEach(({el, maxHeight, height, overflow, overflowX, overflowY}) => {
+          el.style.maxHeight = maxHeight;
+          el.style.height = height;
+          el.style.overflow = overflow;
+          el.style.overflowX = overflowX;
+          el.style.overflowY = overflowY;
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+          orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
+          unit: 'mm',
+          format: 'a4',
+          compress: true
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 6;
+        const usableWidth = pageWidth - margin * 2;
+        const scaledHeight = canvas.height * usableWidth / canvas.width;
+        const usableHeight = pageHeight - margin * 2;
+
+        // Si el reporte ocupa varias páginas verticalmente, se corta el canvas
+        // en segmentos para mantener la escala y conservar la apariencia.
+        if (scaledHeight <= usableHeight) {
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG',
+            margin, margin, usableWidth, scaledHeight, undefined, 'FAST');
+        } else {
+          const sourcePageHeight = Math.floor(canvas.height * usableHeight / scaledHeight);
+          let sourceY = 0;
+          let page = 0;
+
+          while (sourceY < canvas.height) {
+            const sliceHeight = Math.min(sourcePageHeight, canvas.height - sourceY);
+            const slice = document.createElement('canvas');
+            slice.width = canvas.width;
+            slice.height = sliceHeight;
+
+            const ctx = slice.getContext('2d');
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, slice.width, slice.height);
+            ctx.drawImage(
+              canvas,
+              0, sourceY, canvas.width, sliceHeight,
+              0, 0, canvas.width, sliceHeight
+            );
+
+            const sliceScaledHeight = slice.height * usableWidth / slice.width;
+            if (page > 0) pdf.addPage();
+
+            pdf.addImage(slice.toDataURL('image/jpeg', 0.94), 'JPEG',
+              margin, margin, usableWidth, sliceScaledHeight, undefined, 'FAST');
+
+            sourceY += sliceHeight;
+            page++;
+          }
+        }
+
+        pdf.save(`${monthlyReportFileBase()}.pdf`);
+        window.showToast("PDF descargado", "El reporte mensual se descargó conservando su diseño y colores.", "success");
+      } catch (error) {
+        console.error("Error exportando PDF:", error);
+        window.showToast("Error al descargar", "No se pudo generar el PDF del reporte.", "error");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '📄 Descargar PDF';
+        }
+      }
+    };
+
+    window.downloadMonthlyReportExcel = function() {
+      const table = document.getElementById('monthlyReportTable');
+      const btn = document.getElementById('btnDownloadReportExcel');
+      if (!table || !window.XLSX) {
+        window.showToast("No disponible", "No se pudo preparar la exportación Excel.", "error");
+        return;
+      }
+
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '⏳ Preparando Excel...';
+        }
+
+        // Exporta exactamente las columnas y filas que el usuario está viendo
+        // en el reporte actual, respetando filtros, mes y círculo seleccionado.
+        const clone = table.cloneNode(true);
+
+        // Eliminar clases que solo sirven para fijar columnas en pantalla.
+        clone.querySelectorAll('.sticky').forEach(el => {
+          el.classList.remove('sticky', 'left-0', 'left-[210px]');
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.table_to_sheet(clone, { raw: false });
+
+        // Anchos útiles para que el Excel sea legible al abrirlo.
+        const columnCount = ws['!ref']
+          ? XLSX.utils.decode_range(ws['!ref']).e.c + 1
+          : 1;
+        ws['!cols'] = Array.from({length: columnCount}, (_, i) => {
+          if (i === 0) return { wch: 28 };
+          if (i === 1) return { wch: 24 };
+          return { wch: 11 };
+        });
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Reporte Mensual');
+        XLSX.writeFile(wb, `${monthlyReportFileBase()}.xlsx`);
+
+        window.showToast("Excel descargado", "El reporte mensual se descargó con las filas, columnas y filtros actuales.", "success");
+      } catch (error) {
+        console.error("Error exportando Excel:", error);
+        window.showToast("Error al descargar", "No se pudo generar el Excel del reporte.", "error");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '📊 Descargar Excel';
+        }
+      }
+    };
+
     // Directorio de Administradores
     window.renderAdminDirectory = function() {
       const tbody = document.getElementById('adminDirectoryTableBody');
@@ -2463,7 +4134,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         const allowed = window.getUserAllowedCircles(a);
         let scopeHtml = '';
 
-        if (a.role === "Administrador" || allowed.length === window.availableCircles.length) {
+        if (window.isGlobalAdministrator(a) || allowed.length === window.availableCircles.length) {
           scopeHtml = '<span class="px-2 py-0.5 text-xs font-bold rounded bg-purple-50 text-purple-700 border border-purple-200">🌐 Todos los Círculos</span>';
         } else {
           scopeHtml = allowed.length
@@ -2506,6 +4177,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       return {
         circleMeetings: JSON.parse(JSON.stringify(window.circleMeetings || [])),
         circleUsers: JSON.parse(JSON.stringify(window.circleUsers || [])),
+        adminUsers: JSON.parse(JSON.stringify(window.adminUsers || [])),
         availableCircles: JSON.parse(JSON.stringify(window.availableCircles || [])),
         deletedMeetingIds: JSON.parse(JSON.stringify(window.deletedMeetingIds || []))
       };
@@ -2526,8 +4198,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const entry = (window.auditLogEntries || []).find(e => String(e.id) === String(entryId));
       if (!entry) return;
 
-      if (window.currentSessionUser?.role === "Moderador") {
-        window.showToast("Acción Denegada", "Los moderadores no pueden deshacer acciones.", "error");
+      if (!window.isGlobalAdministrator(window.currentSessionUser)) {
+        window.showToast("Acción Denegada", "Solo el Administrador General puede deshacer acciones desde la Bitácora de Auditoría.", "error");
         return;
       }
       if (!entry.snapshot) {
@@ -2544,6 +4216,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       window.circleMeetings = JSON.parse(JSON.stringify(entry.snapshot.circleMeetings || []));
       window.circleUsers = JSON.parse(JSON.stringify(entry.snapshot.circleUsers || []));
+      window.adminUsers = JSON.parse(JSON.stringify(entry.snapshot.adminUsers || window.adminUsers || []));
       window.availableCircles = JSON.parse(JSON.stringify(entry.snapshot.availableCircles || []));
       window.deletedMeetingIds = JSON.parse(JSON.stringify(entry.snapshot.deletedMeetingIds || []));
 
@@ -2566,13 +4239,14 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       window.renderCalendar();
       window.renderMonthlyReport();
       window.renderUserDirectory();
+      window.renderAdminDirectory();
       window.renderAuditLogs();
       window.updateGlobalStats();
       window.showToast("Acción Deshecha", "El estado anterior fue restaurado correctamente.", "success");
     };
 
     window.renderAuditLogs = function() {
-      if (window.currentSessionUser?.role === "Moderador") return;
+      if (!window.isGlobalAdministrator(window.currentSessionUser)) return;
       const list = document.getElementById('auditLogList');
       if (!list) return;
       list.innerHTML = '';
@@ -2599,7 +4273,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       window.sanitizeData();
       const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
       const role = window.currentSessionUser?.role || "Administrador";
-      const isAdmin = (role === "Administrador" || role === "Superadministrador");
+      const isAdmin = window.isGlobalAdministrator(window.currentSessionUser);
 
       const selects = [
         { id: 'circleFilter', hasAll: true, allowAdd: false },
@@ -2693,15 +4367,69 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       document.querySelectorAll('input[name="adminCircleScopeCheck"]').forEach(cb => cb.checked = select);
     };
 
+    window.populateAdminRoleOptions = function(selectedRole = '') {
+      const select = document.getElementById('newAdminRole');
+      if (!select) return;
+      const previous = selectedRole || select.value;
+      select.innerHTML = '';
+
+      // El rol Administrador General pertenece exclusivamente a ADM-001.
+      // Los nuevos usuarios administrativos se crean ligados a un círculo.
+      (window.availableCircles || []).forEach(circle => {
+        const option = document.createElement('option');
+        option.value = circle;
+        option.innerText = `🛡️ ${circle} (Administrador del círculo)`;
+        select.appendChild(option);
+      });
+
+      const moderator = document.createElement('option');
+      moderator.value = 'Moderador';
+      moderator.innerText = '🎯 Moderador (Solo Lectura)';
+      select.appendChild(moderator);
+
+      // Solo para no romper administradores antiguos que todavía puedan existir.
+      const legacy = document.createElement('option');
+      legacy.value = 'Sub Administrador';
+      legacy.innerText = '🎖️ Sub Administrador (Compatibilidad)';
+      select.appendChild(legacy);
+
+      const fallbackRole = (window.availableCircles || [])[0] || 'Moderador';
+      select.value = [...select.options].some(o => o.value === previous) ? previous : fallbackRole;
+      window.handleAdminRoleChange(select.value);
+    };
+
+    window.renderAdminCirclesCheckboxes = function(selectedCircles = []) {
+      window.sanitizeData();
+      const container = document.getElementById('adminCirclesCheckboxList');
+      if (!container) return;
+      container.innerHTML = '';
+      (window.availableCircles || []).forEach(circle => {
+        const isChecked = selectedCircles.includes(circle) || selectedCircles.includes('Todos los Círculos');
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between p-1.5 hover:bg-white rounded transition-colors';
+        div.innerHTML = `<label class="flex items-center space-x-2 cursor-pointer w-full text-xs text-slate-700 font-medium"><input type="checkbox" name="adminCircleScopeCheck" value="${circle}" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"><span>🏷️ ${circle}</span></label>`;
+        container.appendChild(div);
+      });
+    };
+
+    window.toggleAllAdminCircles = function(select) {
+      document.querySelectorAll('input[name="adminCircleScopeCheck"]').forEach(cb => cb.checked = select);
+    };
+
     window.handleAdminRoleChange = function(role) {
       const wrapper = document.getElementById('adminCirclesSelectionWrapper');
-      if (wrapper) {
-        if (role === "Administrador") {
-          wrapper.classList.add('opacity-50', 'pointer-events-none');
-          window.toggleAllAdminCircles(true);
-        } else {
-          wrapper.classList.remove('opacity-50', 'pointer-events-none');
-        }
+      const roleText = String(role || '').trim();
+      const isGlobal = roleText === 'Administrador' || roleText === 'Administrador General' || roleText === 'Superadministrador';
+      const isCircleRole = (window.availableCircles || []).some(c => String(c).trim().toUpperCase() === roleText.toUpperCase());
+      if (!wrapper) return;
+
+      // Para un rol de círculo no existe selección manual: queda ligado al mismo nombre.
+      if (isGlobal || isCircleRole || roleText === 'Moderador') {
+        wrapper.classList.add('hidden');
+        window.toggleAllAdminCircles(isGlobal);
+      } else {
+        wrapper.classList.remove('hidden');
+        if (roleText === 'Sub Administrador') window.toggleAllAdminCircles(false);
       }
     };
 
@@ -2725,7 +4453,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     // Añadir Círculo
     window.openAddCircleModal = function(targetSelectId = '') {
-      if (!window.isAdministrator()) { window.showToast('Acción Denegada','Solo el Administrador puede crear círculos.', 'error'); return; }
+      if (!window.isAdministrator()) { window.showToast('Acción Denegada','Solo el Administrador General puede crear círculos.', 'error'); return; }
       document.getElementById('targetCircleSelectId').value = targetSelectId;
       document.getElementById('newCircleNameInput').value = '';
       window.showModal('addCircleModal');
@@ -2737,7 +4465,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.handleCreateCircle = function(event) {
       if (event) event.preventDefault();
-      if (!window.isAdministrator()) { window.showToast("Acción Denegada", "Solo el Administrador puede crear círculos.", "error"); return; }
+      if (!window.isAdministrator()) { window.showToast("Acción Denegada", "Solo el Administrador General puede crear círculos.", "error"); return; }
       const nameInput = document.getElementById('newCircleNameInput');
       const targetSelectId = document.getElementById('targetCircleSelectId').value;
       const newName = (nameInput?.value || '').trim().toUpperCase();
@@ -2749,10 +4477,13 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         return;
       }
 
-      if (!window.canAccessCircle(circle)) { window.showToast('Acción Denegada','No puedes mover miembros fuera de tus círculos asignados.','error'); return; }
+      // La creación de círculos es exclusiva del Administrador General,
+      // por lo que no necesita una validación de alcance sobre un círculo todavía inexistente.
       const beforeSnapshot = window.captureAuditSnapshot();
 
       window.availableCircles.push(newName);
+      // El nuevo círculo crea automáticamente el rol administrativo con el mismo nombre.
+      window.populateAdminRoleOptions?.();
 
       window.logAuditAction({
         author: window.currentSessionUser?.name || 'Administrador',
@@ -2792,6 +4523,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
       window.availableCircles = (window.availableCircles || []).filter(c => c !== selectedCircle);
       window.circleMeetings = (window.circleMeetings || []).filter(m => m.circle !== selectedCircle);
+      window.populateAdminRoleOptions?.();
 
       window.logAuditAction({
         author: window.currentSessionUser?.name || 'Administrador',
@@ -3637,16 +5369,15 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     // CRUD de Administradores
     window.openNewAdminModal = function() {
-      if (!window.isAdministrator()) {
-        window.showToast("Acción Denegada", "Solo el Administrador puede crear usuarios administrativos.", "error");
+      if (!window.isGlobalAdministrator()) {
+        window.showToast("Acción Denegada", "Solo el Administrador General puede crear usuarios administrativos.", "error");
         return;
       }
       document.getElementById('newAdminDoc').value = '';
       document.getElementById('newAdminName').value = '';
       document.getElementById('newAdminEmail').value = '';
       document.getElementById('newAdminPin').value = '';
-      document.getElementById('newAdminRole').value = 'Sub Administrador';
-      window.handleAdminRoleChange('Sub Administrador');
+      window.populateAdminRoleOptions('Administrador General');
       window.renderAdminCirclesCheckboxes();
       window.showModal('newAdminModal');
     };
@@ -3657,8 +5388,8 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
 
     window.handleRegisterAdmin = function(event) {
       if (event) event.preventDefault();
-      if (!window.isAdministrator()) {
-        window.showToast("Acción Denegada", "Solo el Administrador puede crear usuarios administrativos.", "error");
+      if (!window.isGlobalAdministrator()) {
+        window.showToast("Acción Denegada", "Solo el Administrador General puede crear usuarios administrativos.", "error");
         return;
       }
       const doc = document.getElementById('newAdminDoc').value.trim();
@@ -3667,15 +5398,25 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const email = document.getElementById('newAdminEmail').value.trim();
       const pin = document.getElementById('newAdminPin').value.trim();
 
+      if (role === 'Administrador' || role === 'Administrador General' || role === 'Superadministrador') {
+        window.showToast("Rol No Disponible", "El Administrador General es único y pertenece al Administrador Principal.", "error");
+        return;
+      }
+
       let circleScope = [];
-      if (role === 'Administrador') {
+      const isGlobalRole = role === 'Administrador' || role === 'Administrador General' || role === 'Superadministrador';
+      const matchingCircle = (window.availableCircles || []).find(c => String(c).trim().toUpperCase() === String(role).trim().toUpperCase());
+
+      if (isGlobalRole) {
         circleScope = ['Todos los Círculos'];
+      } else if (matchingCircle) {
+        // El rol y el círculo son inseparables. No se consulta ninguna selección manual.
+        circleScope = [matchingCircle];
       } else {
-        document.querySelectorAll('input[name="adminCircleScopeCheck"]:checked').forEach(cb => {
-          circleScope.push(cb.value);
-        });
-        if (circleScope.length === 0) {
-          window.showToast("Círculos Requeridos", "Seleccione al menos un círculo para este administrador.", "error");
+        // Compatibilidad con el antiguo Sub Administrador.
+        document.querySelectorAll('input[name="adminCircleScopeCheck"]:checked').forEach(cb => circleScope.push(cb.value));
+        if (role === 'Sub Administrador' && circleScope.length === 0) {
+          window.showToast("Círculos Requeridos", "Seleccione al menos un círculo para este administrador antiguo.", "error");
           return;
         }
       }
@@ -4089,7 +5830,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
         : [];
       // En la vista de Zoom, el Sub Administrador solo debe ver la cantidad
       // de círculos que tiene asignados. El Administrador conserva la vista global.
-      const circles = (window.currentSessionUser?.role === 'Administrador' || window.currentSessionUser?.role === 'Superadministrador')
+      const circles = window.isGlobalAdministrator(window.currentSessionUser)
         ? getActiveCirclesForAutomation()
         : allowedCircles.filter(c => getActiveCirclesForAutomation().some(ac => String(ac).toUpperCase() === String(c).toUpperCase()));
       if (!directoryMembers.length && !window.zoomReportRows.length) { box.classList.add('hidden'); return; }
@@ -4169,24 +5910,13 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const type = document.getElementById('zoomSessionType')?.value || '';
       const currentUser = window.currentSessionUser || {};
       const currentRole = String(currentUser.role || '').trim();
-      const isGlobalAdmin = currentRole === 'Administrador' || currentRole === 'Superadministrador';
+      const isGlobalAdmin = window.isGlobalAdministrator(currentUser);
 
-      // El Administrador procesa todos los círculos.
-      // El Sub Administrador SOLO procesa los círculos que tiene asignados.
-      // Nunca se procesan círculos ajenos al alcance del usuario.
-      let allowedZoomCircles = [];
-      if (isGlobalAdmin) {
-        allowedZoomCircles = Array.isArray(window.availableCircles) ? [...window.availableCircles] : [];
-      } else if (currentRole === 'Sub Administrador') {
-        const scope = currentUser.circleScope;
-        if (Array.isArray(scope)) {
-          allowedZoomCircles = scope.map(c => String(c || '').trim())
-            .filter(c => c && c !== 'Todos los Círculos');
-        } else if (typeof scope === 'string') {
-          const one = scope.trim();
-          allowedZoomCircles = one && one !== 'Todos los Círculos' ? [one] : [];
-        }
-      }
+      // El Administrador General procesa todos los círculos.
+      // Un administrador por círculo procesa únicamente el círculo ligado a su rol.
+      let allowedZoomCircles = isGlobalAdmin
+        ? (Array.isArray(window.availableCircles) ? [...window.availableCircles] : [])
+        : window.getUserAllowedCircles(currentUser);
       const allowedZoomCircleKeys = new Set(allowedZoomCircles.map(c => c.toUpperCase()));
 
       const directoryMembers = Array.isArray(window.circleUsers)
@@ -4205,7 +5935,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const status = document.getElementById('zoomProcessStatus');
       const btn = document.getElementById('btnProcessZoom');
       if (btn) { btn.disabled = true; btn.innerText = 'Procesando...'; }
-      if (status && currentRole === 'Sub Administrador') {
+      if (status && !isGlobalAdmin) {
         status.innerText = `Procesando únicamente los círculos asignados: ${allowedZoomCircles.join(', ') || 'ninguno'}.`;
       }
 
@@ -4235,7 +5965,7 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           const rawCircle = String(member.circle || '').trim();
           if (!rawCircle) return;
           const key = rawCircle.toUpperCase();
-          // Defensa adicional: el Sub Administrador no puede procesar un
+          // Defensa adicional: el administrador de círculo no puede procesar un
           // círculo fuera de los círculos que le fueron asignados.
           if (!isGlobalAdmin && !allowedZoomCircleKeys.has(key)) return;
           // Solo se procesa un círculo que exista actualmente en la colección activa.
