@@ -1833,7 +1833,12 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       });
 
       const badgeU = document.getElementById('badge-users-count');
-      if (badgeU) badgeU.innerText = filtered.length;
+      // El contador del Directorio representa todos los miembros visibles para
+      // el usuario, no solo los que coinciden con la búsqueda/filtro actual.
+      const scopedMemberCount = (window.circleUsers || []).filter(u =>
+        allowedCircles.includes(String(u.circle || '').trim())
+      ).length;
+      if (badgeU) badgeU.innerText = scopedMemberCount;
 
       if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400">No hay miembros registrados en los círculos asignados.</td></tr>`;
@@ -3951,8 +3956,18 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const box = document.getElementById('zoomDetectedInfo');
       if (!box) return;
       const dates = [...new Set(window.zoomReportRows.map(r => zoomExtractDateFromEntry(r.entry)).filter(Boolean))];
-      const directoryMembers = Array.isArray(window.circleUsers) ? window.circleUsers.filter(u => u && String(u.circle || '').trim()) : [];
-      const circles = getActiveCirclesForAutomation();
+      const allowedCircles = window.getUserAllowedCircles(window.currentSessionUser);
+      const directoryMembers = Array.isArray(window.circleUsers)
+        ? window.circleUsers.filter(u => {
+            const circle = String(u?.circle || '').trim();
+            return !!circle && allowedCircles.includes(circle);
+          })
+        : [];
+      // En la vista de Zoom, el Sub Administrador solo debe ver la cantidad
+      // de círculos que tiene asignados. El Administrador conserva la vista global.
+      const circles = (window.currentSessionUser?.role === 'Administrador' || window.currentSessionUser?.role === 'Superadministrador')
+        ? getActiveCirclesForAutomation()
+        : allowedCircles.filter(c => getActiveCirclesForAutomation().some(ac => String(ac).toUpperCase() === String(c).toUpperCase()));
       if (!directoryMembers.length && !window.zoomReportRows.length) { box.classList.add('hidden'); return; }
       box.classList.remove('hidden');
       const activeBadge = document.getElementById('zoomActiveCirclesBadge');
@@ -4028,8 +4043,34 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
     window.processZoomAttendance = async function() {
       if (!window.canModifySystem()) { window.showToast("Acción Denegada", "Los moderadores tienen acceso de solo lectura.", "error"); return; }
       const type = document.getElementById('zoomSessionType')?.value || '';
+      const currentUser = window.currentSessionUser || {};
+      const currentRole = String(currentUser.role || '').trim();
+      const isGlobalAdmin = currentRole === 'Administrador' || currentRole === 'Superadministrador';
+
+      // El Administrador procesa todos los círculos.
+      // El Sub Administrador SOLO procesa los círculos que tiene asignados.
+      // Nunca se procesan círculos ajenos al alcance del usuario.
+      let allowedZoomCircles = [];
+      if (isGlobalAdmin) {
+        allowedZoomCircles = Array.isArray(window.availableCircles) ? [...window.availableCircles] : [];
+      } else if (currentRole === 'Sub Administrador') {
+        const scope = currentUser.circleScope;
+        if (Array.isArray(scope)) {
+          allowedZoomCircles = scope.map(c => String(c || '').trim())
+            .filter(c => c && c !== 'Todos los Círculos');
+        } else if (typeof scope === 'string') {
+          const one = scope.trim();
+          allowedZoomCircles = one && one !== 'Todos los Círculos' ? [one] : [];
+        }
+      }
+      const allowedZoomCircleKeys = new Set(allowedZoomCircles.map(c => c.toUpperCase()));
+
       const directoryMembers = Array.isArray(window.circleUsers)
-        ? window.circleUsers.filter(u => u && String(u.circle || '').trim())
+        ? window.circleUsers.filter(u => {
+            if (!u || !String(u.circle || '').trim()) return false;
+            if (isGlobalAdmin) return true;
+            return allowedZoomCircleKeys.has(String(u.circle || '').trim().toUpperCase());
+          })
         : [];
 
       if (!type || !window.zoomReportRows.length || !directoryMembers.length) {
@@ -4040,6 +4081,9 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
       const status = document.getElementById('zoomProcessStatus');
       const btn = document.getElementById('btnProcessZoom');
       if (btn) { btn.disabled = true; btn.innerText = 'Procesando...'; }
+      if (status && currentRole === 'Sub Administrador') {
+        status.innerText = `Procesando únicamente los círculos asignados: ${allowedZoomCircles.join(', ') || 'ninguno'}.`;
+      }
 
       try {
         const dateStr = zoomGetReportDate();
@@ -4067,6 +4111,9 @@ button.bg-brand-600:hover,button.bg-indigo-600:hover{background:#0b1736!importan
           const rawCircle = String(member.circle || '').trim();
           if (!rawCircle) return;
           const key = rawCircle.toUpperCase();
+          // Defensa adicional: el Sub Administrador no puede procesar un
+          // círculo fuera de los círculos que le fueron asignados.
+          if (!isGlobalAdmin && !allowedZoomCircleKeys.has(key)) return;
           // Solo se procesa un círculo que exista actualmente en la colección activa.
           if (!activeCircleMap.has(key)) return;
           const circle = activeCircleMap.get(key);
